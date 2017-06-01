@@ -82,15 +82,7 @@ sys application template /Common/f5.service_discovery {
 
                                 puts "Installing $download_path"
                                 if { [string match *.rpm $file_name] } {
-
-                                    set post_body_file /tmp/rest-install-[clock format [clock seconds] -format "%Y-%m-%d-%H-%M-%S"]
-                                    set fd [open $post_body_file w]
-                                    puts $fd "{\"operation\": \"INSTALL\", \"packageFilePath\": \"$download_path\"}"
-                                    close $fd
-
-                                    set curl_params "-sku admin: -X POST -d@$post_body_file https://localhost:$mgmt_port/mgmt/shared/iapp/package-management-tasks"
-                                    puts "curl install parameters: $curl_params"
-                                    set curl_out [eval exec curl [lrange $curl_params 0 end]]
+                                    set curl_out [exec curl -sku admin: -H "Content-Type: application/json" -d "{'operation': 'INSTALL', 'packageFilePath': \'$download_path\'}" https://localhost:$mgmt_port/mgmt/shared/iapp/package-management-tasks]
                                     puts "curl install result: $curl_out"
 
                                     set wait_for_restnoded 1
