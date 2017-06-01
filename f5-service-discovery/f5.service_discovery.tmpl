@@ -1,0 +1,407 @@
+sys application template /Common/f5.service_discovery {
+    actions {
+        definition {
+            html-help {
+                <p><b>Service Discovery Template</b></p>
+<p>This template creates a complete configuration for updating pool members based on auto-scaled cloud application hosts. Before you start: </p>
+<ul>
+    <li>All of the help for this iApp template is found inline. Select <b>Yes, show inline help</b> from the inline help question.</li>
+    <li>Check System :: Resource Provisioning to ensure that LTM (local traffic manager) is provisioned.</li>
+    <li>Set up VLANs to the servers containing the applications your clients will access.</li>
+</ul>
+            }
+            implementation {
+                package require iapp 1.0.0
+
+                proc get_cloud_provider {} {
+                    return aws
+                }
+
+                proc verify_hash { file_path } {
+                    if {[catch {
+                        set hashes(f5-cloud-libs.tar.gz) bfe39b46735534492539141ce8a6eb0c49815e0639505398c4f17f6b0a390f70762f448e4a5b1fe2caf785c4bfa4447eb866929c2915314a6b323b50f0aaa153
+                        set hashes(f5-cloud-libs-aws.tar.gz) d67ccf46a3e772e7bb909185371bf7f7560a63b88d58eef5cc2be7f3b236ecbda2868beaa413d8c54c4c55456c650499572a423b10fe4613654aec8d7fa2b96e
+                        set hashes(f5-cloud-libs-azure.tar.gz) 9d4dc6779a5d25253832598d42681defa54c5f4521a70ba8e053179c262cdf0d5c8d6a3d458ea21da1d95212792b099bf2721ddbe175eed035cd1e00647124cf
+                        set hashes(f5-cloud-nodes-worker-0.0.1-1.noarch.rpm) 073a577468cbc860b4a74b86164494e4e1cd9b625815f153ba164a70e8227a95958cc5bd208bb99ed3a4872a6ef05d3e5540f7be7851369dbc97e843931bcb1d
+
+                        set file_name [file tail $file_path]
+
+                        if { ![info exists hashes($file_name)] } {
+                            tmsh::log err "No hash found for $file_name"
+                            exit 1
+                        }
+
+                        set expected_hash $hashes($file_name)
+                        set computed_hash [lindex [exec /usr/bin/openssl dgst -r -sha512 $file_path] 0]
+                        if { $expected_hash ne $computed_hash } {
+                            tmsh::log err "Invalid hash for $file_name"
+                            exit 1
+                        }
+                    } err ]} {
+                        tmsh::log err "Unexpected error in verifyHash: $err"
+                        exit 1
+                    }
+                }
+
+                proc install_dependencies {} {
+
+                    puts "Checking dependencies"
+
+                    set DOWNLOAD_DIR /var/config/rest/downloads
+                    set cloud_provider [get_cloud_provider]
+                    set wait_for_restnoded 0
+
+                    set dependencies(1,/config/cloud/$cloud_provider/node_modules/f5-cloud-libs) \
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-libs/serviceDiscovery/dist/f5-cloud-libs.tar.gz
+                    set dependencies(2,/config/cloud/$cloud_provider/node_modules/f5-cloud-libs/node_modules/f5-cloud-libs-$cloud_provider) \
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-libs-$cloud_provider/serviceDiscovery/dist/f5-cloud-libs-$cloud_provider.tar.gz
+                    set dependencies(3,/var/config/rest/iapps/f5-cloud-nodes-worker) \
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/initial/dist/f5-cloud-nodes-worker-0.0.1-1.noarch.rpm
+
+                    set mgmt_port [tmsh::get_config sys httpd ssl-port]
+                    set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
+
+                    foreach orderPath [lsort [array names dependencies]] {
+
+                        set url $dependencies($orderPath)
+                        set path [string range $orderPath [expr [string first , $orderPath] + 1] end]
+
+                        # download
+                        if { ![file exists $path] } {
+                            set file_name [file tail $url]
+                            set dest_path [file dirname $path]
+                            set download_path $DOWNLOAD_DIR/$file_name
+                            exec mkdir -p $dest_path
+
+                            if { [catch {
+                                puts "Downloading $url"
+                                exec curl -s -o $download_path $url
+
+                                puts "Verifying $download_path"
+                                verify_hash $download_path
+
+                                puts "Installing $download_path"
+                                if { [string match *.rpm $file_name] } {
+
+                                    set post_body_file /tmp/rest-install-[clock format [clock seconds] -format "%Y-%m-%d-%H-%M-%S"]
+                                    set fd [open $post_body_file w]
+                                    puts $fd "{\"operation\": \"INSTALL\", \"packageFilePath\": \"$download_path\"}"
+                                    close $fd
+
+                                    set curl_params "-sku admin: -X POST -d@$post_body_file https://localhost:$mgmt_port/mgmt/shared/iapp/package-management-tasks"
+                                    puts "curl install parameters: $curl_params"
+                                    set curl_out [eval exec curl [lrange $curl_params 0 end]]
+                                    puts "curl install result: $curl_out"
+
+                                    set wait_for_restnoded 1
+                                }
+                                elseif { [string match *.tar.gz $file_name] } {
+                                    exec tar xzf $download_path --directory $dest_path
+                                }
+                                else {
+                                    tmsh::log err "Unknown file type $full_path"
+                                    exit 1
+                                }
+                            } err ]} {
+                                tmsh::log err "Error installing $url: $err"
+                                exit 1
+                            }
+                        }
+                    }
+
+                    # If we installed something via REST, restnoded will restart - wait for it
+                    if { $wait_for_restnoded == 1 } {
+                        after 3000
+                    }
+                }
+
+                iapp::template start
+
+                install_dependencies
+
+                # constants
+                set YES_ANSWER "yes"
+                set NO_ANSWER "no"
+                set CREATE_NEW_ANSWER "/#create_new#"
+                set DEFAULT_ANSWER "/#default#"
+
+                set app $tmsh::app_name
+                set advanced [expr { [iapp::is ::basic__advanced $YES_ANSWER] }]
+                set lb_lcm_licensed [expr {[string first ltm_lb_least_conn [tmsh::show sys license detail]] != -1}]
+
+                # MONITOR SEND STRING
+                # only the first FQDN in the hosts table is used for monitoring
+                set hostname   [lindex [join [join [expr { [info exists ::pool__hosts] \
+                               ? "$::pool__hosts" : "" }]]] 1]
+                set http10     [iapp::is ::monitor__http_version http10]
+                set http_post  [iapp::is ::monitor__http_method POST]
+
+                # array keys: $http10,$http_post
+                array set send_string_arr {
+                    1,1 { 'POST $::monitor__uri HTTP/1.0\\r\\nContent-Length: [string length $::monitor__post_body]\\r\\n\\r\\n$::monitor__post_body' }
+                    1,0 { 'GET $::monitor__uri HTTP/1.0\\r\\n\\r\\n' }
+                    0,1 { 'POST $::monitor__uri HTTP/1.1\\r\\nHost: $hostname\\r\\nContent-Length: [string length $::monitor__post_body]\\r\\nConnection: Close\\r\\n\\r\\n$::monitor__post_body' }
+                    *   { 'GET $::monitor__uri HTTP/1.1\\r\\nHost: $hostname\\r\\nConnection: Close\\r\\n\\r\\n'}
+                }
+
+                # MONITOR
+                set new_monitor [iapp::is ::monitor__monitor $::CREATE_NEW_ANSWER]
+
+                # array keys: $new_pool,$new_monitor
+                array set monitor_arr {
+                    1,1 { monitor [iapp::conf create ltm monitor http \
+                        ${app}_http_monitor \
+                        defaults-from http \
+                        interval 30 \
+                        timeout 91 \
+                        send [iapp::substa send_string_arr($http10,$http_post)]\
+                        recv '$::monitor__response'] }
+                    1,0 { monitor $::monitor__monitor }
+                    *   { monitor none }
+                }
+
+                # POOL
+                # array keys: $advanced,$lb_lcm_licensed
+                array set pool_lb_method {
+                    0,0 { load-balancing-mode round-robin }
+                    0,1 { load-balancing-mode least-connections-member }
+                    *   { load-balancing-mode $::pool__lb_method_choice }
+                }
+
+                set new_pool [iapp::is ::pool__pool_to_use "/#create_new#"]
+                if { $new_pool } {
+                    set pool_name ${app}.app/${app}_pool
+                }
+                else {
+                    set pool_name $::pool__pool_to_use
+                }
+
+                # array keys: $new_pool,tcp
+                array set pool {
+                    1,tcp { pool [iapp::conf create ltm pool ${app}_pool \
+                               [iapp::substa pool_lb_method($advanced,$lb_lcm_licensed)] \
+                               [iapp::substa monitor_arr($new_pool,$new_monitor)] ] }
+
+                    *     { pool $::pool__pool_to_use }
+                }
+
+                iapp::substa pool($new_pool,tcp)
+
+                set icall_script {
+                    tmsh::modify sys application service <APP_NAME> strict-updates disabled
+                    set mgmt_port [tmsh::get_config sys httpd ssl-port]
+                    set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
+                    set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&roleArn=<ROLE_ARN>\\&externalId=<EXTERNAL_ID>\\&region=<REGION>);
+                                                    echo \$NODE_JSON | jq -r '\[.\[\] | \"\\(.id):<MEMBER_PORT> { address \\(.ip) connection-limit <CONNECTION_LIMIT> }\"\] | join (\" \")'"]
+                    tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \} load-balancing-mode <LB_METHOD>
+                }
+
+                if { [iapp::is ::cloud__aws_use_role $NO_ANSWER] } {
+                    set ::cloud__aws_role_arn $DEFAULT_ANSWER
+                    set ::cloud__aws_external_id $DEFAULT_ANSWER
+                }
+
+                set script_map "
+                    <CLOUD>             $::cloud__cloud_provider
+                    <APP_NAME>          ${app}.app/${app}
+                    <POOL_TO_USE>       $pool_name
+                    <MEMBER_PORT>       $::pool__member_port
+                    <CONNECTION_LIMIT>  $::pool__member_conn_limit
+                    <LB_METHOD>         $::pool__lb_method_choice
+                    <MEMBER_TAG_KEY>    $::pool__tag_key
+                    <MEMBER_TAG_VALUE>  $::pool__tag_value
+                    <ADDRESS_TYPE>      $::pool__public_private
+                    <ROLE_ARN>          $::cloud__aws_role_arn
+                    <EXTERNAL_ID>       $::cloud__aws_external_id
+                    <REGION>            $::cloud__aws_region
+                "
+
+                set mapped_script [string map $script_map $icall_script]
+                set mapped_script [regsub -all $DEFAULT_ANSWER $mapped_script '']
+                iapp::conf create sys icall script ${app}_service_discovery_icall_script \{ definition \{ $mapped_script \} description none events none \}
+                iapp::conf create sys icall handler periodic ${app}_service_discover_icall_handler \{ first-occurrence now interval $::pool__interval script ${app}_service_discovery_icall_script \}
+
+                iapp::template stop
+            }
+            presentation {
+                include "/Common/f5.apl_common"
+
+                section intro {
+                    message intro
+                    message check_for_updates
+
+                    optional ( intro == "NEVER_SHOW_THIS" ) {
+                        choice isa_dmin tcl {
+                            package require iapp 1.1.3
+                            return [expr { [iapp::get_user -is_admin] ? "yes" : "no"}]
+                        }
+                    }
+                }
+
+                section basic {
+                    choice advanced display "xxlarge" default "no"
+                    choice display_help display "xxlarge" default "hide"
+                }
+
+                section cloud {
+                    choice cloud_provider display "medium"
+
+                    optional ( cloud_provider == "aws" ) {
+                        choice aws_region display "xlarge"
+                        optional ( basic.display_help == "max" ) {
+                            message aws_region_help
+                        }
+
+                        choice aws_use_role default "no"
+                        optional ( aws_use_role == "yes" ) {
+                            string aws_role_arn display "large"
+                            string aws_external_id display "large"
+                        }
+                    }
+                }
+
+                section pool {
+                    string tag_key display "medium"
+                    string tag_value display "medium"
+                    choice public_private default "private" {"public", "private"}
+                    string interval required default "60"
+
+                    choice pool_to_use display "xxlarge" default "/#create_new#" tcl {
+                        package require iapp 1.0.0
+                        set ::choices "/#create_new#\n[iapp::get_items ltm pool]"
+                        return [iapp::safe_display ::choices]
+                    }
+                    optional ( basic.display_help == "max" ) {
+                        message pool_help
+                    }
+
+                    string member_port display "small" required default "80" validator "PortNumber"
+                    string member_conn_limit display "small" required default "0" validator "NonNegativeNumber"
+
+                    lb_method lb_method_choice
+
+                    optional ( lb_method_choice == "ratio-member"
+                            || lb_method_choice == "ratio-node"
+                            || lb_method_choice == "ratio-session"
+                            || lb_method_choice == "ratio-least-connections-member"
+                            || lb_method_choice == "ratio-least-connections-node"
+                            || lb_method_choice == "dynamic-ratio-member"
+                            || lb_method_choice == "dynamic-ratio-node" ) {
+                        string member_ratio default "1" validator "NonNegativeNumber" display "small"
+                    }
+
+                    optional ( basic.display_help == "max" ) {
+                        message lb_method_max
+                    }
+                }
+
+                optional ( pool.pool_to_use == "/#create_new#" ) {
+
+                    section monitor {
+
+                        choice monitor display "xxlarge" default "/#create_new#" tcl {
+
+                            set ::choices "Create a new health monitor\t/#create_new#\n[iapp::get_items ltm monitor http]"
+                            return [iapp::safe_display ::choices]
+                        }
+
+                        optional ( monitor == "/#create_new#" ) {
+
+                            string uri display "xxlarge" required default "/"
+                            string frequency display "medium" required default "30" validator "NonNegativeNumber"
+                            choice http_version display "xxlarge" default "http11" {
+                                        "HTTP/1.0" => "http10"  ,
+                                        "HTTP/1.1" => "http11"
+                            }
+                            choice http_method display "xxlarge" default "GET" { "GET"  , "POST" }
+                            optional ( http_method == "POST" ) {
+                                string post_body display "xxlarge" required
+                            }
+                            string response display "xxlarge"
+                        }
+                    }
+                }
+
+                text {
+                    intro "Welcome to the iApp template for cloud service discovery"
+                    intro.intro "Introduction" "configuration for updating pool members based on auto-scaled cloud application hosts."
+                    intro.check_for_updates "Check for Updates" "Check for new versions of this template on the AskF5 Knowledge Base website (http://support.f5.com/kb/en-us/solutions/public/13000/400/sol13422.html)."
+
+                    basic "Template Options"
+                    basic.display_help "Do you want to see inline help?" {
+                        "Yes, show inline help" => "max",
+                        "No, do not show inline help" => "hide"
+                    }
+                    basic.advanced "Which configuration mode do you want to use?" {
+                        "Basic - Use F5's recommended settings" => "no",
+                        "Advanced - Configure advanced options" => "yes"
+                    }
+
+                    cloud "Cloud Provider"
+                    cloud.cloud_provider "Which provider are you running in?" {
+                        "AWS EC2" => "aws",
+                        "Azure" => "azure"
+                    }
+                    cloud.aws_region "What region do you want to search?" {
+                        "Default" => "/#default#",
+                        "US East (N. Virginia)" => "us-east-1",
+                        "US East (Ohio)" => "us-east-2",
+                        "US West (N. California)" => "us-west-1",
+                        "US West (Oregon)" => "us-west-2",
+                        "Canada (Central)" => "ca-central-1",
+                        "EU (Ireland)" => "eu-west-1",
+                        "EU (Frankfurt)" => "eu-central-1",
+                        "EU (London)" => "eu-west-2",
+                        "Asia Pacific (Tokyo)" => "ap-northeast-1",
+                        "Asia Pacific (Seoul)" => "ap-northeast-2",
+                        "Asia Pacific (Singapore)" => "ap-southeast-1",
+                        "Asia Pacific (Sydney)" => "ap-southeast-2",
+                        "Asia Pacific (Mumbai)" => "ap-south-1",
+                        "South America (São Paulo)" => "sa-east-1"
+                    }
+                    cloud.aws_region_help "" "Default is to search the same region in which the BIG-IP is running."
+                    cloud.aws_use_role "Do you want to assume a role?" {
+                        "Yes" => "yes",
+                        "No" => "no"
+                    }
+                    cloud.aws_role_arn "What is the role ARN?"
+                    cloud.aws_external_id "What is the External ID?"
+
+                    pool "Pool"
+                    pool.pool_to_use "Do you want to create a new pool or use an existing one?" {
+                        "Create a new pool..." => "/#create_new#"
+                    }
+                    pool.pool_help "" "A load balancing pool is a logical set of devices, such as application servers, grouped together to receive and process traffic. When clients attempt to access the application via the BIG-IP virtual server, the BIG-IP system distributes requests to any of the servers that are members of that pool."
+                    pool.tag_key "What is the tag key on your cloud provider for the members of this pool?"
+                    pool.tag_value "What is the tag value on your cloud provider for the members of this pool?"
+                    pool.public_private "Do you want to search for public or private IP addresses?"
+                    pool.interval "How often do you want to query the cloud provider for updates (in seconds)?"
+                    pool.member_port "Port"
+                    pool.member_conn_limit "Connection limit"
+                    pool.member_ratio "Ratio"
+                    pool.lb_method_choice "Which load balancing method do you want to use?"
+                    pool.lb_method_max "" "A load balancing method is an algorithm that the BIG-IP system uses to select a pool member for processing a request. F5 recommends the Least Connections load balancing method, where new connections are routed to the node that has the least number of current connections. This is ideal for environments in which pool members have similar performance and capacity capabilities."
+
+                    monitor "Application Health"
+                    monitor.monitor "Create a new health monitor or use an existing one?"
+                    monitor.http_method "What type of HTTP request should be sent to the servers?"
+                    monitor.uri "What HTTP URI should be sent to the servers?"
+                    monitor.http_version "Which HTTP version do your servers expect clients to use?"
+                    monitor.frequency "How many seconds should pass between health checks?"
+                    monitor.response "What is the expected response to the HTTP request?"
+                    monitor.post_body "What HTTP POST body do you want to use for this monitor?"
+                }
+            }
+            role-acl { admin manager resource-admin }
+            run-as none
+        }
+    }
+    description none
+    ignore-verification false
+    requires-bigip-version-max none
+    requires-bigip-version-min 11.4.0
+    requires-modules { ltm }
+    signing-key none
+    tmpl-checksum none
+    tmpl-signature none
+}
