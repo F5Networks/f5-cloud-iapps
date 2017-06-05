@@ -184,7 +184,7 @@ sys application template /Common/f5.service_discovery {
                     tmsh::modify sys application service <APP_NAME> strict-updates disabled
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
-                    set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=roleArn=<ROLE_ARN>,externalId=<EXTERNAL_ID>,region=<REGION>);
+                    set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=roleArn=<ROLE_ARN>,externalId=<EXTERNAL_ID>,region=<REGION>,subscriptionId=<SUBSCRIPTION_ID>,clientId=<CLIENT_ID>,tenantId=<TENANT_ID>,servicePrincipalSecret=<SP_SECRET>);
                                                     echo \$NODE_JSON | jq -r '\[.\[\] | \"\\(.id):<MEMBER_PORT> { address \\(.ip) connection-limit <CONNECTION_LIMIT> }\"\] | join (\" \")'"]
 
                     tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \} load-balancing-mode <LB_METHOD>
@@ -205,6 +205,13 @@ sys application template /Common/f5.service_discovery {
                     <MEMBER_TAG_KEY>    $::pool__tag_key
                     <MEMBER_TAG_VALUE>  $::pool__tag_value
                     <ADDRESS_TYPE>      $::pool__public_private
+                    <ROLE_ARN>          [expr { [iapp::is ::cloud__cloud_provider "aws"] ? $::cloud__aws_role_arn : "null" }]
+                    <EXTERNAL_ID>          [expr { [iapp::is ::cloud__cloud_provider "aws"] ? $::cloud__aws_external_id : "null" }]
+                    <REGION>          [expr { [iapp::is ::cloud__cloud_provider "aws"] ? $::cloud__aws_region : "null" }]
+                    <SUBSCRIPTION_ID> [expr { [iapp::is ::cloud__cloud_provider "azure"] ? $::cloud__azure_subscription_id : "null" }]
+                    <CLIENT_ID> [expr { [iapp::is ::cloud__cloud_provider "azure"] ? $::cloud__azure_client_id : "null" }]
+                    <TENANT_ID> [expr { [iapp::is ::cloud__cloud_provider "azure"] ? $::cloud__azure_tenant_id : "null" }]
+                    <SP_SECRET> [expr { [iapp::is ::cloud__cloud_provider "azure"] ? $::cloud__azure_sp_secret : "null" }]
                 "
 
                 switch $::cloud__cloud_provider {
@@ -263,10 +270,10 @@ sys application template /Common/f5.service_discovery {
                             string aws_external_id display "large"
                         }
                     }
-
+                    
                     optional ( cloud_provider == "azure" ) {
                          string azure_subscription_id display "large"
-                         string azure_tenant_id display "large"
+                         string azure_tenant_id display "large"                        
                          string azure_client_id display "large"
                          string azure_sp_secret display "large"
                          optional ( basic.display_help == "max" ) {
