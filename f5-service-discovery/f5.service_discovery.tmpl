@@ -15,10 +15,10 @@ sys application template /Common/f5.service_discovery {
 
                 proc verify_hash { file_path } {
                     if {[catch {
-                        set hashes(f5-cloud-libs.tar.gz) c9af351619370fe390958dc3284ae0880c633deb181fab52a630ee8bbc284aeecd0e455cdd478e17ff5f0b2567029302400341ef9252a9dbcf5536f4bfa20bb6
-                        set hashes(f5-cloud-libs-aws.tar.gz) 1d1ea551c0dcfcdb90c9a4767f6e2cbe41b2560af472057d389da7e70b77eccb99947dbdfbfe7b6ce39e85a34fb3b00dd6fc08addc310741ebd030c689512e2c
-                        set hashes(f5-cloud-libs-azure.tar.gz) 66330f636f5b4d213fd48816302eca7be5a65968150f439ddae986392c79a81a69cf6a783edca13960894ff9058828163649f935c2c96c3f47ba595dc8adaf6c
-                        set hashes(f5-cloud-nodes-worker-0.0.1-1.noarch.rpm) 0d280b46460b8e041e2692b2c265067c3e51a09206dab2212678c267fb30f15969e09a1bd08858020a493a11ebab88738b44d957e159ede261ba33ba767be08d
+                        set hashes(f5-cloud-libs.tar.gz) f2115a7d423bc980d0dd1dfe62956eeb2bb59a3a0645982e0f02693cbf0ae2d56b5413cea026dac29b4ccffa9f39c6418acd2019975e1daf66efd3e81658b29f
+                        set hashes(f5-cloud-libs-aws.tar.gz) de0e76eab2dcae4c36571f31c4377f2682d68b19acbb4f6ac9a88f4fdb6beae0341e93701d35a696302ef6302c545f917a0be661a1258694cb5030ab77b9cccd
+                        set hashes(f5-cloud-libs-azure.tar.gz) 9d4dc6779a5d25253832598d42681defa54c5f4521a70ba8e053179c262cdf0d5c8d6a3d458ea21da1d95212792b099bf2721ddbe175eed035cd1e00647124cf
+                        set hashes(f5-cloud-nodes-worker-0.0.1-1.noarch.rpm) e62f153cfc214bab428df043204375b58e38086ffe79cff35d5c288758145b1ee57aeb2510468e370be49a708172f46302d651b1d1ccb48ba376ee0abaf992f2
 
                         set file_name [file tail $file_path]
 
@@ -50,22 +50,12 @@ sys application template /Common/f5.service_discovery {
                     set cloud_provider $::cloud__cloud_provider
                     set wait_for_restnoded 0
 
-                    set cloud_libs_tag v3.1.0-beta
-                    set nodes_worker_tag v1.0.0-beta
-                    if { $cloud_provider == "azure" } {
-                        set top_dir /config/cloud/node_modules
-                        set provider_tag serviceDiscovery
-                    } else {
-                        set top_dir /config/cloud/$cloud_provider/node_modules
-                        set provider_tag v1.3.0-beta
-                    }
-
-                    set dependencies(1,$top_dir/f5-cloud-libs) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-libs/$cloud_libs_tag/dist/f5-cloud-libs.tar.gz
-                    set dependencies(2,$top_dir/f5-cloud-libs/node_modules/f5-cloud-libs-$cloud_provider) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-libs-$cloud_provider/$provider_tag/dist/f5-cloud-libs-$cloud_provider.tar.gz
+                    set dependencies(1,/config/cloud/$cloud_provider/node_modules/f5-cloud-libs) \
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-libs/serviceDiscovery/dist/f5-cloud-libs.tar.gz
+                    set dependencies(2,/config/cloud/$cloud_provider/node_modules/f5-cloud-libs/node_modules/f5-cloud-libs-$cloud_provider) \
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-libs-$cloud_provider/provider/dist/f5-cloud-libs-$cloud_provider.tar.gz
                     set dependencies(3,/var/config/rest/iapps/f5-cloud-nodes-worker) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-0.0.1-1.noarch.rpm
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/provider/dist/f5-cloud-nodes-worker-0.0.1-1.noarch.rpm
 
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
@@ -194,7 +184,7 @@ sys application template /Common/f5.service_discovery {
                     tmsh::modify sys application service <APP_NAME> strict-updates disabled
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
-                    set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=<PROVIDER_OPTIONS>);
+                    set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=roleArn=<ROLE_ARN>,externalId=<EXTERNAL_ID>,region=<REGION>);
                                                     echo \$NODE_JSON | jq -r '\[.\[\] | \"\\(.id):<MEMBER_PORT> { address \\(.ip) connection-limit <CONNECTION_LIMIT> }\"\] | join (\" \")'"]
 
                     tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \} load-balancing-mode <LB_METHOD>
