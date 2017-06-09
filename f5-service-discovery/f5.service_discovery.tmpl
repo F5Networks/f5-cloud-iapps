@@ -283,7 +283,7 @@ sys application template /Common/f5.service_discovery {
                          string azure_subscription_id display "large"
                          string azure_tenant_id display "large"                        
                          string azure_client_id display "large"
-                         string azure_sp_secret display "large"
+                         password azure_sp_secret display "large"
                          optional ( basic.display_help == "max" ) {
                             message azure_auth_help
                         }
