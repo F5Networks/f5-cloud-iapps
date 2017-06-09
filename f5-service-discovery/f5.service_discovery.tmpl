@@ -230,7 +230,7 @@ sys application template /Common/f5.service_discovery {
                     }
                     azure {
                         set provider_script_map "
-                            <PROVIDER_OPTIONS>  subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,servicePrincipalSecret=$::cloud__azure_sp_secret
+                            <PROVIDER_OPTIONS>  subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,secret=$::cloud__azure_sp_secret
                         "
                     }
                 }
