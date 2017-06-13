@@ -274,20 +274,20 @@ sys application template /Common/f5.service_discovery {
 
                         choice aws_use_role default "no"
                         optional ( aws_use_role == "yes" ) {
-                            string aws_role_arn display "large"
-                            string aws_external_id display "large"
+                            string aws_role_arn required display "large"
+                            string aws_external_id required display "large"
                         }
                     }
                     
                     optional ( cloud_provider == "azure" ) {
-                         string azure_resource_grouip display "large"
+                         string azure_resource_group required display "large"
                          optional ( basic.display_help == "max" ) {
                             message azure_resource_group_help
                         }
-                         string azure_subscription_id display "large"
-                         string azure_tenant_id display "large"                        
-                         string azure_client_id display "large"
-                         password azure_sp_secret display "large"
+                         string azure_subscription_id required display "large"
+                         string azure_tenant_id display required "large"
+                         string azure_client_id display required "large"
+                         password azure_sp_secret required display "large"
                          optional ( basic.display_help == "max" ) {
                             message azure_auth_help
                         }
