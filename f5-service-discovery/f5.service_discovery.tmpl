@@ -230,7 +230,7 @@ sys application template /Common/f5.service_discovery {
                     }
                     azure {
                         set provider_script_map "
-                            <PROVIDER_OPTIONS>  subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,secret=$::cloud__azure_sp_secret
+                            <PROVIDER_OPTIONS>  resourceGroup=$::cloud__azure_resource_group,subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,secret=$::cloud__azure_sp_secret
                         "
                     }
                 }
@@ -280,6 +280,10 @@ sys application template /Common/f5.service_discovery {
                     }
                     
                     optional ( cloud_provider == "azure" ) {
+                         string azure_resource_grouip display "large"
+                         optional ( basic.display_help == "max" ) {
+                            message azure_resource_group_help
+                        }
                          string azure_subscription_id display "large"
                          string azure_tenant_id display "large"                        
                          string azure_client_id display "large"
@@ -401,6 +405,8 @@ sys application template /Common/f5.service_discovery {
                     cloud.azure_client_id "What is the client ID?"
                     cloud.azure_sp_secret "What is the service principal secret?"
                     cloud.azure_auth_help "" "Please provide the service principal information used to search the Azure subscription for pool members. See https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal for more information."
+                    cloud.azure_resource_group "What is Azure the resource group?"
+                    cloud.azure_resource_group_help "" "Please provide the name of the Azure resource group containing the tagged resources."
 
                     pool "Pool"
                     pool.pool_to_use "Do you want to create a new pool or use an existing one?" {
