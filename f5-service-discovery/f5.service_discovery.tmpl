@@ -195,7 +195,7 @@ sys application template /Common/f5.service_discovery {
                     set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=roleArn=<ROLE_ARN>,externalId=<EXTERNAL_ID>,region=<REGION>,subscriptionId=<SUBSCRIPTION_ID>,clientId=<CLIENT_ID>,tenantId=<TENANT_ID>,servicePrincipalSecret=<SP_SECRET>);
                                                     echo \$NODE_JSON | jq -r '\[.\[\] | \"\\(.id):<MEMBER_PORT> { address \\(.ip) connection-limit <CONNECTION_LIMIT> }\"\] | join (\" \")'"]
 
-                    tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \} load-balancing-mode <LB_METHOD>
+                    tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \}
                 }
 
                 if { [iapp::is ::cloud__aws_use_role $NO_ANSWER] } {
@@ -209,7 +209,6 @@ sys application template /Common/f5.service_discovery {
                     <POOL_TO_USE>       $pool_name
                     <MEMBER_PORT>       $::pool__member_port
                     <CONNECTION_LIMIT>  $::pool__member_conn_limit
-                    <LB_METHOD>         $::pool__lb_method_choice
                     <MEMBER_TAG_KEY>    $::pool__tag_key
                     <MEMBER_TAG_VALUE>  $::pool__tag_value
                     <ADDRESS_TYPE>      $::pool__public_private
@@ -285,8 +284,8 @@ sys application template /Common/f5.service_discovery {
                             message azure_resource_group_help
                         }
                          string azure_subscription_id required display "large"
-                         string azure_tenant_id display required "large"
-                         string azure_client_id display required "large"
+                         string azure_tenant_id required display "large"
+                         string azure_client_id required display "large"
                          password azure_sp_secret required display "large"
                          optional ( basic.display_help == "max" ) {
                             message azure_auth_help
@@ -295,8 +294,8 @@ sys application template /Common/f5.service_discovery {
                 }
 
                 section pool {
-                    string tag_key display "medium"
-                    string tag_value display "medium"
+                    string tag_key required display "medium"
+                    string tag_value required display "medium"
                     choice public_private default "private" {"public", "private"}
                     string interval required default "60"
 
@@ -311,21 +310,23 @@ sys application template /Common/f5.service_discovery {
 
                     string member_port display "small" required default "80" validator "PortNumber"
                     string member_conn_limit display "small" required default "0" validator "NonNegativeNumber"
+                    
+                    optional ( basic.advanced == "yes" ) {
+                        lb_method lb_method_choice
 
-                    lb_method lb_method_choice
+                        optional ( lb_method_choice == "ratio-member"
+                                || lb_method_choice == "ratio-node"
+                                || lb_method_choice == "ratio-session"
+                                || lb_method_choice == "ratio-least-connections-member"
+                                || lb_method_choice == "ratio-least-connections-node"
+                                || lb_method_choice == "dynamic-ratio-member"
+                                || lb_method_choice == "dynamic-ratio-node" ) {
+                            string member_ratio default "1" validator "NonNegativeNumber" display "small"
+                        }
 
-                    optional ( lb_method_choice == "ratio-member"
-                            || lb_method_choice == "ratio-node"
-                            || lb_method_choice == "ratio-session"
-                            || lb_method_choice == "ratio-least-connections-member"
-                            || lb_method_choice == "ratio-least-connections-node"
-                            || lb_method_choice == "dynamic-ratio-member"
-                            || lb_method_choice == "dynamic-ratio-node" ) {
-                        string member_ratio default "1" validator "NonNegativeNumber" display "small"
-                    }
-
-                    optional ( basic.display_help == "max" ) {
-                        message lb_method_max
+                        optional ( basic.display_help == "max" ) {
+                            message lb_method_max
+                        }
                     }
                 }
 
