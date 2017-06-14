@@ -85,7 +85,7 @@ sys application template /Common/f5.service_discovery {
                                 exec curl -sk -o $download_path $url
 
                                 puts "Verifying $download_path"
-                                # verify_hash $download_path
+                                verify_hash $download_path
 
                                 puts "Installing $download_path"
                                 if { [string match *.rpm $file_name] } {
