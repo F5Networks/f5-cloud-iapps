@@ -192,8 +192,8 @@ sys application template /Common/f5.service_discovery {
                     tmsh::modify sys application service <APP_NAME> strict-updates disabled
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
-                    set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=roleArn=<ROLE_ARN>,externalId=<EXTERNAL_ID>,region=<REGION>,subscriptionId=<SUBSCRIPTION_ID>,clientId=<CLIENT_ID>,tenantId=<TENANT_ID>,servicePrincipalSecret=<SP_SECRET>);
-                                                    echo \$NODE_JSON | jq -r '\[.\[\] | \"\\(.id):<MEMBER_PORT> { address \\(.ip) connection-limit <CONNECTION_LIMIT> }\"\] | join (\" \")'"]
+                    set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=<PROVIDER_OPTIONS>);
+                                                    echo \$NODE_JSON | jq -r '\[.\[\] | \"\\(.ip):<MEMBER_PORT> { address \\(.ip) description \\(.id) connection-limit <CONNECTION_LIMIT> }\"\] | join (\" \")'"]
 
                     tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \}
                 }
@@ -310,7 +310,7 @@ sys application template /Common/f5.service_discovery {
 
                     string member_port display "small" required default "80" validator "PortNumber"
                     string member_conn_limit display "small" required default "0" validator "NonNegativeNumber"
-                    
+
                     optional ( basic.advanced == "yes" ) {
                         lb_method lb_method_choice
 
