@@ -252,7 +252,7 @@ sys application template /Common/f5.service_discovery {
 
                 section intro {
                     message intro
-                    message check_for_updates
+                 
 
                     optional ( intro == "NEVER_SHOW_THIS" ) {
                         choice isa_dmin tcl {
@@ -353,20 +353,41 @@ sys application template /Common/f5.service_discovery {
                             set ::choices "Create a new health monitor\t/#create_new#\n[iapp::get_items ltm monitor http]"
                             return [iapp::safe_display ::choices]
                         }
-
+                            optional ( basic.display_help == "max" ) {
+                                message monitor_help
+                            }
                         optional ( monitor == "/#create_new#" ) {
 
                             string uri display "xxlarge" required default "/"
+                                optional ( basic.display_help == "max" ) {
+                                    message uri_help
+                                }
                             string frequency display "medium" required default "30" validator "NonNegativeNumber"
+                                optional ( basic.display_help == "max" ) {
+                                    message frequency_help
+                                }
                             choice http_version display "xxlarge" default "http11" {
                                         "HTTP/1.0" => "http10"  ,
                                         "HTTP/1.1" => "http11"
                             }
+                                optional ( basic.display_help == "max" ) {
+                                    message http_version_help
+                                }
                             choice http_method display "xxlarge" default "GET" { "GET"  , "POST" }
+                                optional ( basic.display_help == "max" ) {
+                                    message http_method_help
+                                }
                             optional ( http_method == "POST" ) {
                                 string post_body display "xxlarge" required
+                            
+                                optional ( basic.display_help == "max" ) {
+                                    message post_body_help
+                                }
                             }
                             string response display "xxlarge"
+                                optional ( basic.display_help == "max" ) {
+                                    message response_help
+                                }
                         }
                     }
                 }
@@ -374,7 +395,7 @@ sys application template /Common/f5.service_discovery {
                 text {
                     intro "Welcome to the iApp template for Cloud Service Discovery"
                     intro.intro "Introduction" "This iApp enables updating pool members based on auto-scaled cloud application hosts."
-                    intro.check_for_updates "Check for Updates" "Check for new versions of this template on the AskF5 Knowledge Base website (http://support.f5.com/kb/en-us/solutions/public/13000/400/sol13422.html)."
+                    
 
                     basic "Template Options"
                     basic.display_help "Do you want to see inline help?" {
@@ -444,12 +465,19 @@ sys application template /Common/f5.service_discovery {
 
                     monitor "Application Health"
                     monitor.monitor "Create a new health monitor or use an existing one?"
+                    monitor.monitor_help "" "Monitors are used to determine the health of each server. If server does not respond or responds incorrectly, the system will cease to send client requests to that server. The system will continue to monitor the instance and will begin sending requests once the server responds correctly."
                     monitor.http_method "What type of HTTP request should be sent to the servers?"
+                    monitor.http_method_help "" "The HTTP request type determines which HTTP method the monitor sends to the server. GET is the most common request type for web applications."
                     monitor.uri "What HTTP URI should be sent to the servers?"
+                    monitor.uri_help "" "The HTTP URI is used to specify the resource on the server for a given request. This parameter can be customized to request a specific part of an application, which can indicate the health of the application on a granular level."
                     monitor.http_version "Which HTTP version do your servers expect clients to use?"
+                    monitor.http_version_help "" "The HTTP version can be customized so it matches what a typical client would be using, in order to detect failures in the most meaningful way. HTTP/1.0 and HTTP/1.1 are the most common.  HTTP/1.0 is more simple, while HTTP/1.1 offers more features."
                     monitor.frequency "How many seconds should pass between health checks?"
+                    monitor.frequency_help "" "This is the duration, in seconds, of a single monitor cycle. At this interval, the system checks the health of the server in the pool."
                     monitor.response "What is the expected response to the HTTP request?"
+                    monitor.response_help "" "When the HTTP response arrives for a monitor request, its contents are searched for the value specified here. If it is not found, the monitoring attempt fails."
                     monitor.post_body "What HTTP POST body do you want to use for this monitor?"
+                    monitor.post_body_help "" "POST requests require an HTTP POST body to send to the server."
                 }
             }
             role-acl { admin manager resource-admin }
