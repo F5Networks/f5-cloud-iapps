@@ -63,11 +63,11 @@ sys application template /Common/f5.service_discovery {
                     }
 
                     set dependencies(1,$top_dir/f5-cloud-libs) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-libs/serviceDiscovery/dist/f5-cloud-libs.tar.gz
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-libs/$cloud_libs_tag/dist/f5-cloud-libs.tar.gz
                     set dependencies(2,$top_dir/f5-cloud-libs/node_modules/f5-cloud-libs-$cloud_provider) \
                         https://raw.githubusercontent.com/F5Networks/f5-cloud-libs-$cloud_provider/$provider_tag/dist/f5-cloud-libs-$cloud_provider.tar.gz
                     set dependencies(3,/var/config/rest/iapps/f5-cloud-nodes-worker) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/provider/dist/f5-cloud-nodes-worker-0.0.1-1.noarch.rpm
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-0.0.1-1.noarch.rpm
 
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
@@ -200,6 +200,7 @@ sys application template /Common/f5.service_discovery {
                                                     echo \$NODE_JSON | jq -r '\[.\[\] | \"\\(.ip):<MEMBER_PORT> { address \\(.ip) description \\(.id) connection-limit <CONNECTION_LIMIT> }\"\] | join (\" \")'"]
 
                     tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \}
+
                 }
 
                 if { [iapp::is ::cloud__aws_use_role $NO_ANSWER] } {
@@ -216,13 +217,6 @@ sys application template /Common/f5.service_discovery {
                     <MEMBER_TAG_KEY>    $::pool__tag_key
                     <MEMBER_TAG_VALUE>  $::pool__tag_value
                     <ADDRESS_TYPE>      $::pool__public_private
-                    <ROLE_ARN>          [expr { [iapp::is ::cloud__cloud_provider "aws"] ? $::cloud__aws_role_arn : "null" }]
-                    <EXTERNAL_ID>          [expr { [iapp::is ::cloud__cloud_provider "aws"] ? $::cloud__aws_external_id : "null" }]
-                    <REGION>          [expr { [iapp::is ::cloud__cloud_provider "aws"] ? $::cloud__aws_region : "null" }]
-                    <SUBSCRIPTION_ID> [expr { [iapp::is ::cloud__cloud_provider "azure"] ? $::cloud__azure_subscription_id : "null" }]
-                    <CLIENT_ID> [expr { [iapp::is ::cloud__cloud_provider "azure"] ? $::cloud__azure_client_id : "null" }]
-                    <TENANT_ID> [expr { [iapp::is ::cloud__cloud_provider "azure"] ? $::cloud__azure_tenant_id : "null" }]
-                    <SP_SECRET> [expr { [iapp::is ::cloud__cloud_provider "azure"] ? $::cloud__azure_sp_secret : "null" }]
                 "
 
                 switch $::cloud__cloud_provider {
@@ -267,30 +261,36 @@ sys application template /Common/f5.service_discovery {
                 }
 
                 section cloud {
-                    choice cloud_provider display "medium"
+                    choice cloud_provider display "xxlarge"
+                        optional ( basic.display_help == "max" ) {
+                            message cloud_provider_help
+                        }
 
                     optional ( cloud_provider == "aws" ) {
-                        choice aws_region display "xlarge"
+                        choice aws_region display "xxlarge"
                         optional ( basic.display_help == "max" ) {
                             message aws_region_help
                         }
 
-                        choice aws_use_role default "no"
+                        choice aws_use_role default "no" display "xxlarge"
+                            optional ( basic.display_help == "max" ) {
+                                message aws_use_role_help
+                            }
                         optional ( aws_use_role == "yes" ) {
-                            string aws_role_arn required display "large"
-                            string aws_external_id required display "large"
+                            string aws_role_arn required display "xxlarge"
+                            string aws_external_id required display "xxlarge"
                         }
                     }
-                    
+
                     optional ( cloud_provider == "azure" ) {
-                         string azure_resource_group required display "large"
+                         string azure_resource_group required display "xxlarge"
                          optional ( basic.display_help == "max" ) {
                             message azure_resource_group_help
                         }
-                         string azure_subscription_id required display "large"
-                         string azure_tenant_id required display "large"
-                         string azure_client_id required display "large"
-                         password azure_sp_secret required display "large"
+                         string azure_subscription_id required display "xxlarge"
+                         string azure_tenant_id required display "xxlarge"
+                         string azure_client_id required display "xxlarge"
+                         password azure_sp_secret required display "xxlarge"
                          optional ( basic.display_help == "max" ) {
                             message azure_auth_help
                         }
@@ -298,9 +298,15 @@ sys application template /Common/f5.service_discovery {
                 }
 
                 section pool {
-                    string tag_key required display "medium"
-                    string tag_value required display "medium"
-                    choice public_private default "private" {"public", "private"}
+                    string tag_key required display "xxlarge"
+                        optional ( basic.display_help == "max" ) {
+                            message tag_key_help
+                        }
+                    string tag_value required display "xxlarge"
+                    choice public_private display "xxlarge" default "private" {
+                        "Public IP addresses" => "public" ,
+                        "Private IP addresses" => "private"
+                    }
                     string interval required default "60"
 
                     choice pool_to_use display "xxlarge" default "/#create_new#" tcl {
@@ -313,7 +319,14 @@ sys application template /Common/f5.service_discovery {
                     }
 
                     string member_port display "small" required default "80" validator "PortNumber"
+                    optional ( basic.display_help == "max" ) {
+                        message member_port_help
+                    }
+
                     string member_conn_limit display "small" required default "0" validator "NonNegativeNumber"
+                    optional ( basic.display_help == "max" ) {
+                        message member_conn_limit_help
+                    }
 
                     optional ( basic.advanced == "yes" ) {
                         lb_method lb_method_choice
@@ -362,8 +375,8 @@ sys application template /Common/f5.service_discovery {
                 }
 
                 text {
-                    intro "Welcome to the iApp template for cloud service discovery"
-                    intro.intro "Introduction" "configuration for updating pool members based on auto-scaled cloud application hosts."
+                    intro "Welcome to the iApp template for Cloud Service Discovery"
+                    intro.intro "Introduction" "This iApp enables updating pool members based on auto-scaled cloud application hosts."
                     intro.check_for_updates "Check for Updates" "Check for new versions of this template on the AskF5 Knowledge Base website (http://support.f5.com/kb/en-us/solutions/public/13000/400/sol13422.html)."
 
                     basic "Template Options"
@@ -377,11 +390,12 @@ sys application template /Common/f5.service_discovery {
                     }
 
                     cloud "Cloud Provider"
-                    cloud.cloud_provider "Which provider are you running in?" {
+                    cloud.cloud_provider "In which cloud provider is this BIG-IP deployed?" {
                         "AWS EC2" => "aws",
                         "Azure" => "azure"
                     }
-                    cloud.aws_region "What region do you want to search?" {
+                    cloud.cloud_provider_help "" "Select whether the BIG-IP VE (Virtual Edition) you are configuring is running in Amazon Web Services EC2 or Microsoft Azure."
+                    cloud.aws_region "Which region do you want to search?" {
                         "Default" => "/#default#",
                         "US East (N. Virginia)" => "us-east-1",
                         "US East (Ohio)" => "us-east-2",
@@ -403,27 +417,31 @@ sys application template /Common/f5.service_discovery {
                         "Yes" => "yes",
                         "No" => "no"
                     }
-                    cloud.aws_role_arn "What is the role ARN?"
+                    cloud.aws_use_role_help "" "Assuming a role is typically used for cross-account access (for example if your Application servers are in one account and the BIG-IP VE is in another). If you select Yes, you must specify the ARN and External ID in the following questions. See the AWS documentation for details."
+                    cloud.aws_role_arn "What is the role Amazon Resource Name (ARN)?"
                     cloud.aws_external_id "What is the External ID?"
                     cloud.azure_subscription_id "What is the subscription ID?"
                     cloud.azure_tenant_id "What is the tenant ID?"
                     cloud.azure_client_id "What is the client ID?"
                     cloud.azure_sp_secret "What is the service principal secret?"
-                    cloud.azure_auth_help "" "Please provide the service principal information used to search the Azure subscription for pool members. See https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal for more information."
+                    cloud.azure_auth_help "" "Enter the service principal information used to search the Azure subscription for pool members. See https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal for more information."
                     cloud.azure_resource_group "What is Azure the resource group?"
-                    cloud.azure_resource_group_help "" "Please provide the name of the Azure resource group containing the tagged resources."
+                    cloud.azure_resource_group_help "" "Type the name of the Azure resource group containing the tagged resources."
 
                     pool "Pool"
                     pool.pool_to_use "Do you want to create a new pool or use an existing one?" {
                         "Create a new pool..." => "/#create_new#"
                     }
-                    pool.pool_help "" "A load balancing pool is a logical set of devices, such as application servers, grouped together to receive and process traffic. When clients attempt to access the application via the BIG-IP virtual server, the BIG-IP system distributes requests to any of the servers that are members of that pool."
+                    pool.pool_help "" "A load balancing pool is a logical set of devices, such as application servers, grouped together to receive and process traffic. When clients attempt to access the application via the BIG-IP virtual server, the BIG-IP system distributes requests to any of the servers that are members of that pool.  If you select an existing pool, we strongly recommend you have at least one health monitor attached.The iApp does not create a health monitor for existing pools."
                     pool.tag_key "What is the tag key on your cloud provider for the members of this pool?"
+                    pool.tag_key_help "" "Type the cloud provider tag key and tag value for the members of your pool. Servers with these values are added to your pool."
                     pool.tag_value "What is the tag value on your cloud provider for the members of this pool?"
                     pool.public_private "Do you want to search for public or private IP addresses?"
                     pool.interval "How often do you want to query the cloud provider for updates (in seconds)?"
-                    pool.member_port "Port"
-                    pool.member_conn_limit "Connection limit"
+                    pool.member_port "Which port should be assigned to the pool members?"
+                    pool.member_port_help "" "Type the port number you want assigned to the pool members.  Port 80 is the default."
+                    pool.member_conn_limit "Connection limit (optional)"
+                    pool.member_conn_limit_help "" "You can optionally specify a connection limit for the pool members.  When this limit is reached, the system no longer sends new connections to that member."
                     pool.member_ratio "Ratio"
                     pool.lb_method_choice "Which load balancing method do you want to use?"
                     pool.lb_method_max "" "A load balancing method is an algorithm that the BIG-IP system uses to select a pool member for processing a request. F5 recommends the Least Connections load balancing method, where new connections are routed to the node that has the least number of current connections. This is ideal for environments in which pool members have similar performance and capacity capabilities."
