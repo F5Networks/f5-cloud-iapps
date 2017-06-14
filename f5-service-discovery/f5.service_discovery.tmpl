@@ -240,6 +240,8 @@ sys application template /Common/f5.service_discovery {
 
                 iapp::template stop
             }
+            macro {
+            }
             presentation {
                 define choice lb_method display "xxlarge" tcl {
                     if { [string first ltm_lb_least_conn [tmsh::show sys license detail]] != -1 } {
@@ -252,7 +254,7 @@ sys application template /Common/f5.service_discovery {
 
                 section intro {
                     message intro
-                 
+
 
                     optional ( intro == "NEVER_SHOW_THIS" ) {
                         choice isa_dmin tcl {
@@ -379,7 +381,7 @@ sys application template /Common/f5.service_discovery {
                                 }
                             optional ( http_method == "POST" ) {
                                 string post_body display "xxlarge" required
-                            
+
                                 optional ( basic.display_help == "max" ) {
                                     message post_body_help
                                 }
@@ -395,7 +397,7 @@ sys application template /Common/f5.service_discovery {
                 text {
                     intro "Welcome to the iApp template for Cloud Service Discovery"
                     intro.intro "Introduction" "This iApp enables updating pool members based on auto-scaled cloud application hosts."
-                    
+
 
                     basic "Template Options"
                     basic.display_help "Do you want to see inline help?" {
@@ -489,7 +491,7 @@ sys application template /Common/f5.service_discovery {
     requires-bigip-version-max none
     requires-bigip-version-min 12.1.0
     requires-modules { ltm }
-    signing-key none
+    signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature none
+    tmpl-signature mNdCTGvES9AyXxXK9a79kQXKUbhwmKTbvhG57yePp5Cv8VjSDCoRIE67wvGmUn97SKe6NSs/e/3JrbXJwzPWW7jZxQHsv4Va35uvfnJ9Q5y19AYPowQKcZnFSPRf9rDUayTi5MmzH1AvcUl5fzU/b2GJYGLUhQyAXFnD+zQhOcF1Ih4iBxQE1mYXprpbkbl1yChHKGrstCVLCl5DbEJJxf9SJNLOFXU4+oTXjcnuT8rIu2gd/j861ayDYtebQdc6IGFZinFvlWfIxJD5eGlXWdihiYcYVhCffhIyBCe3B4jANJiDK2HNHcpWW6FccO4n/ABxx/w6hN/2Bbb/4FVQzQ==
 }
