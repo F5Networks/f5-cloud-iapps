@@ -67,7 +67,7 @@ sys application template /Common/f5.service_discovery {
                     set dependencies(2,$top_dir/f5-cloud-libs/node_modules/f5-cloud-libs-$cloud_provider) \
                         https://raw.githubusercontent.com/F5Networks/f5-cloud-libs-$cloud_provider/$provider_tag/dist/f5-cloud-libs-$cloud_provider.tar.gz
                     set dependencies(3,/var/config/rest/iapps/f5-cloud-nodes-worker) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-0.0.1-1.noarch.rpm
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-1.0.0-1.noarch.rpm
 
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
@@ -493,5 +493,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature mNdCTGvES9AyXxXK9a79kQXKUbhwmKTbvhG57yePp5Cv8VjSDCoRIE67wvGmUn97SKe6NSs/e/3JrbXJwzPWW7jZxQHsv4Va35uvfnJ9Q5y19AYPowQKcZnFSPRf9rDUayTi5MmzH1AvcUl5fzU/b2GJYGLUhQyAXFnD+zQhOcF1Ih4iBxQE1mYXprpbkbl1yChHKGrstCVLCl5DbEJJxf9SJNLOFXU4+oTXjcnuT8rIu2gd/j861ayDYtebQdc6IGFZinFvlWfIxJD5eGlXWdihiYcYVhCffhIyBCe3B4jANJiDK2HNHcpWW6FccO4n/ABxx/w6hN/2Bbb/4FVQzQ==
+    tmpl-signature eFsFwd52ye67OgOWbog8a0sqwhPTprFj7nIEf4nWTTZEV8gaWxrE8rAYAl99rPBQDxERbyasytoTHwb3xr9jPXqwO0+xahHks4YOh9XD85HybQfzwDlfZAffizPgeXH7wq3bq+8FCdsO9q27A/d9OU+Mxjnrg488Xvg7s8+yBLsb48lG1N/DcVMZsdThLZzh88vccedF6g8DefeHqNY7YAC15pmVRFmjgCyQo3ID9JdKeJLLRb9yM0DWSeEXqldoRKtOicoZV/UMqPxBJ5gb87mTmIyvLxFw4SErwOIiMX6aT3Ne2tu0JsD5cd1Xq+SwcrO5hoVh0MISq5QTyNf7pA==
 }
