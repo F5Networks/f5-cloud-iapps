@@ -254,6 +254,12 @@ sys application template /Common/f5.service_discovery {
 
                 section intro {
                     message intro
+                    message note
+                    message tag
+                    message tag1
+                    message tag2
+                    message tag3
+                    message tag4
 
 
                     optional ( intro == "NEVER_SHOW_THIS" ) {
@@ -396,8 +402,13 @@ sys application template /Common/f5.service_discovery {
 
                 text {
                     intro "Welcome to the iApp template for Cloud Service Discovery"
-                    intro.intro "Introduction" "This iApp enables updating pool members based on auto-scaled cloud application hosts."
-
+                    intro.intro "Introduction" "This iApp enables automatically updating pool members based on auto-scaled cloud application hosts.  Once you have tagged your cloud resources appropriately, complete this template and then the BIG-IP VE will programmatically discover (or remove) pool members based on the tags."
+                    intro.note "IMPORTANT" "This iApp uses the tag key and tag values you configure on your cloud provider to discover pool members. Make sure the tags and IP addresses you use are unique. You should not tag multiple nodes with the same key/tag combination if those nodes use the same IP address. See your cloud provider documentation for specific information on tagging."
+                    intro.tag "Tagging your cloud resources" "You have the following options for tagging nodes on your cloud provider."
+                    intro.tag1 "" " * Tag a VM resource:  If you tag a VM resource, the BIG-IP VE will discover the primary public or private IP address for the primary NIC configured for the tagged VM."
+                    intro.tag2 "" " * Tag a NIC resource:  If you tag a NIC resource, the BIG-IP VE will discover the primary public or private IP addresses for the tagged NIC.  Use this option if you want to use the secondary NIC of a VM in the pool."
+                    intro.tag3 "" " * (Azure only) Tag a Virtual Machine Scale Set resource:  If you tag a Scale Set resource, the BIG-IP VE will discover the primary private IP address for the primary NIC configured for each Scale Set instance.  Note you must select Private IP addresses if you are tagging a Scale Set."
+                    intro.tag4 "" "The iApp first looks for NIC resources with the tags you specify.  If it finds NICs with the proper tags, it does not look for VM resources. If it does not find NIC resources, it looks for VM resources with the proper tags. If you are using Microsoft Azure only: In either case, it then looks for Scale Set resources with the proper tags."
 
                     basic "Template Options"
                     basic.display_help "Do you want to see inline help?" {
@@ -445,7 +456,7 @@ sys application template /Common/f5.service_discovery {
                     cloud.azure_client_id "What is the client ID?"
                     cloud.azure_sp_secret "What is the service principal secret?"
                     cloud.azure_auth_help "" "Enter the service principal information used to search the Azure subscription for pool members. See https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal for more information."
-                    cloud.azure_resource_group "What is Azure the resource group?"
+                    cloud.azure_resource_group "What is the Azure resource group?"
                     cloud.azure_resource_group_help "" "Type the name of the Azure resource group containing the tagged resources."
 
                     pool "Pool"
@@ -487,10 +498,11 @@ sys application template /Common/f5.service_discovery {
         }
     }
     description none
-    ignore-verification false
+    ignore-verification true
     requires-bigip-version-max none
     requires-bigip-version-min 12.1.0
     requires-modules { ltm }
-    signing-key /Common/f5-irule
-    tmpl-checksum none
+
+
+
 }
