@@ -86,7 +86,7 @@ sys application template /Common/f5.service_discovery {
 
                             if { [catch {
                                 puts "Downloading $url"
-                                exec curl -sk -o $download_path $url
+                                exec curl -s -o $download_path $url
 
                                 puts "Verifying $download_path"
                                 verify_hash $download_path
