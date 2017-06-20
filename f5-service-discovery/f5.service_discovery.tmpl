@@ -51,15 +51,15 @@ sys application template /Common/f5.service_discovery {
                     set cloud_provider $::cloud__cloud_provider
                     set wait_for_restnoded 0
 
-                    set cloud_libs_tag release-3.1.0
-                    set nodes_worker_tag release-1.0.0
+                    set cloud_libs_tag v3.1.0
+                    set nodes_worker_tag v1.0.0
 
                     if { $cloud_provider == "azure" } {
                         set top_dir /config/cloud/node_modules
-                        set provider_tag release-1.2.0
+                        set provider_tag v1.2.0
                     } else {
                         set top_dir /config/cloud/$cloud_provider/node_modules
-                        set provider_tag release-1.3.0
+                        set provider_tag v1.3.0
                     }
 
                     set dependencies(1,$top_dir/f5-cloud-libs) \
@@ -504,5 +504,4 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature AlPJZry2opn7I+RqPa00/NU3MqIWpFXPPrp/oTRLfE++8el5CQ66M8wltPY0AqmuzrgKc0MTqLr3l6KHzM3JsLqX+39ePzTW6IGNTNF2F43H2Vhc9OnwSaYwdVPlS4oc0SNKz94gfmrMXS0kKXtIj10xZPw9cBGEmdasRugSxmo4kr5t1IatWy6T2q5j/hnJRqiJd65Mn73gERyz1IHpycfTpTrtmKAGj3/msoE7h7NMNK/qyLGGH+ypc3V11rgLVHdJZCa5iQlxwg9hCVXVRhETpe8FWrGyNORX7Nm2+3HKfAtTqf+rGc/XqudiZgUkCxEHVqVcJG8fuI6k99dPkw==
 }
