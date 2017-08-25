@@ -16,10 +16,10 @@ sys application template /Common/f5.service_discovery {
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) 8103cc640a41ad327fe103463e262ba5f700df51f9b8304723b2cf33bfd5c80e4a1bb7869f7b466dddd6f6e9351286e0024c0b212d29dc55b849d15558f66369
-                        set hashes(f5-cloud-libs-aws.tar.gz) 6689f940fa4863dda289a16b73b64284efc5f88a7aad3e6f574d9928704ef587728765bbfc39454172cd9624f31096f5335432ec7eb3bff67aaf1313b5d6553d
+                        set hashes(f5-cloud-libs.tar.gz) 57d1657bc51cbfeed4ed3ca606eb37dc08223ae23a4ef8a3bcadf98a2aa8282542eb69608ec5ad87b2f4640745a606ac884102d793a57899028329d1df4290eb
+                        set hashes(f5-cloud-libs-aws.tar.gz) 549aa436be806c80640f8dce570128fdf84613bf0688392e018639412c63818d25f26635b0aaf23e8cdf60b0d331de9218ed51a9cdfbf33db6e683727169a727
                         set hashes(f5-cloud-libs-azure.tar.gz) a4ff4a9af058ce6058159531fd7bca07eb8808cdd1b1e13de0e1324ec7e4692211991ecaa58dc36021c6c88c7783837d480584393753c3dfc2fddf623781e3a9
-                        set hashes(f5-cloud-nodes-worker-1.0.0-1.noarch.rpm) 768d64843c282d5abb8d73a634043e3edc4c7eda5d26cdc20ab8612eeb2b8240c4b19e0787d1cb068fe6de2dbc04731e6f878781c2a210d41f730767eec84120
+                        set hashes(f5-cloud-nodes-worker-1.0.1-1.noarch.rpm) 6a54e18a1ea5460b727fbe0a109c644f93e309b98ce5f58c8e2e5bf1907e953c38eec80285367daedd55ccd090840ded876d03f6e8b28d2b28433d38ff961acf
 
                         set file_name [file tail $file_path]
 
@@ -51,15 +51,14 @@ sys application template /Common/f5.service_discovery {
                     set cloud_provider $::cloud__cloud_provider
                     set wait_for_restnoded 0
 
-                    set cloud_libs_tag v3.2.0
-                    set nodes_worker_tag v1.0.0
+                    set cloud_libs_tag develop
+                    set nodes_worker_tag develop
 
+                    set top_dir /config/cloud/$cloud_provider/node_modules
                     if { $cloud_provider == "azure" } {
-                        set top_dir /config/cloud/node_modules
-                        set provider_tag v1.2.0
+                        set provider_tag develop
                     } else {
-                        set top_dir /config/cloud/$cloud_provider/node_modules
-                        set provider_tag v1.4.0
+                        set provider_tag develop
                     }
 
                     set dependencies(1,$top_dir/f5-cloud-libs) \
@@ -67,7 +66,7 @@ sys application template /Common/f5.service_discovery {
                     set dependencies(2,$top_dir/f5-cloud-libs/node_modules/f5-cloud-libs-$cloud_provider) \
                         https://raw.githubusercontent.com/F5Networks/f5-cloud-libs-$cloud_provider/$provider_tag/dist/f5-cloud-libs-$cloud_provider.tar.gz
                     set dependencies(3,/var/config/rest/iapps/f5-cloud-nodes-worker) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-1.0.0-1.noarch.rpm
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-1.0.1-1.noarch.rpm
 
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
@@ -504,5 +503,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature oBOHaU1Kbc2U1jYX/Gf6U6WiGP/26WaIgUIN/lm7NenJWtAStdxdI7mGtFd5RmHf6rCKmJ9/SruXRNlRVvhNBiZtRdHOOUgl0LJY53mRoUDRoSusnEN2kapgghZOWgLof1fR/5PstCr6UzPOwBbbfT/5WXfeqrvBsTJ4Dv7IjQMB/VLJtUCFqxNhCc3ik5bfENdnFs8HYQNg+mxSQdGURU+wzWjMJG8Lw7rDM7IUGQ71qCyPntUkW0pZqRTOC5cyi/1ThQRBE9rBQ6bi/jm8hKikXnRq+pVJOTopQX56kPNSzwyaBiQ8Od7rAm3lZgmSxpAuv1O7D+TaN5q1XAMcFQ==
+    tmpl-signature eDHTmx+2EcPghz8E0y8y89AmS7P0TwbfMRrKweXZqck2GEDtl4uVh7VKp1J7eiGfOOYOOwQfHnaDpiE6PotTKUPll3K+i1Ed24NqrTXJyG+N03WwA33z2h+3OYimIKJTMF+oJI3yJbmcuLJnP0bAVKJyPwVTOLk9v5AFASD5vAm1C0G+LG4YDSlKRlM4k3y2adkbGJELLfGP3AS6IOFPh7TFjxVGG/FcIyxTHvxLwbhUBkx1G3kCbIoj/zWTFbiWcJP8MRXeS0oyCMAZw/PUSBsocHWOgNbiCp8sy4oGmd3gE3iuN5nsl2WcVHzQKPXLopnbLa1k7jwKjkFnc9+A2A==
 }
