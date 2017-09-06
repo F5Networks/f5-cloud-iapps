@@ -19,6 +19,7 @@ sys application template /Common/f5.service_discovery {
                         set hashes(f5-cloud-libs.tar.gz) 57d1657bc51cbfeed4ed3ca606eb37dc08223ae23a4ef8a3bcadf98a2aa8282542eb69608ec5ad87b2f4640745a606ac884102d793a57899028329d1df4290eb
                         set hashes(f5-cloud-libs-aws.tar.gz) 549aa436be806c80640f8dce570128fdf84613bf0688392e018639412c63818d25f26635b0aaf23e8cdf60b0d331de9218ed51a9cdfbf33db6e683727169a727
                         set hashes(f5-cloud-libs-azure.tar.gz) a4ff4a9af058ce6058159531fd7bca07eb8808cdd1b1e13de0e1324ec7e4692211991ecaa58dc36021c6c88c7783837d480584393753c3dfc2fddf623781e3a9
+                        set hashes(f5-cloud-libs-gce.tar.gz) a4ff4a9af058ce6058159531fd7bca07eb8808cdd1b1e13de0e1324ec7e4692211991ecaa58dc36021c6c88c7783837d480584393753c3dfc2fddf623781e3a9
                         set hashes(f5-cloud-nodes-worker-1.0.1-1.noarch.rpm) 6a54e18a1ea5460b727fbe0a109c644f93e309b98ce5f58c8e2e5bf1907e953c38eec80285367daedd55ccd090840ded876d03f6e8b28d2b28433d38ff961acf
 
                         set file_name [file tail $file_path]
@@ -55,10 +56,16 @@ sys application template /Common/f5.service_discovery {
                     set nodes_worker_tag develop
 
                     set top_dir /config/cloud/$cloud_provider/node_modules
-                    if { $cloud_provider == "azure" } {
-                        set provider_tag develop
-                    } else {
-                        set provider_tag develop
+                    switch $cloud_provider {
+                        aws {
+                            set provider_tag develop
+                        }
+                        azure {
+                            set provider_tag develop
+                        }
+                        gce {
+                            set provider_tag develop
+                        }
                     }
 
                     set dependencies(1,$top_dir/f5-cloud-libs) \
@@ -229,6 +236,11 @@ sys application template /Common/f5.service_discovery {
                             <PROVIDER_OPTIONS>  resourceGroup=$::cloud__azure_resource_group,subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,secret=$::cloud__azure_sp_secret
                         "
                     }
+                    gce {
+                        set provider_script_map "
+                            <PROVIDER_OPTIONS> zone=$::cloud__gce_zone
+                        "
+                    }
                 }
 
                 set mapped_script [string map $common_script_map $icall_script]
@@ -307,6 +319,13 @@ sys application template /Common/f5.service_discovery {
                          password azure_sp_secret required display "xxlarge"
                          optional ( basic.display_help == "max" ) {
                             message azure_auth_help
+                        }
+                    }
+
+                    optional ( cloud_provider == "gce" ) {
+                        choice gce_zone display "xxlarge"
+                        optional ( basic.display_help == "max" ) {
+                            message gce_zone_help
                         }
                     }
                 }
@@ -422,9 +441,11 @@ sys application template /Common/f5.service_discovery {
                     cloud "Cloud Provider"
                     cloud.cloud_provider "In which cloud provider is this BIG-IP deployed?" {
                         "AWS EC2" => "aws",
-                        "Azure" => "azure"
+                        "Azure" => "azure",
+                        "Google Compute Engine" => "gce"
                     }
-                    cloud.cloud_provider_help "" "Select whether the BIG-IP VE (Virtual Edition) you are configuring is running in Amazon Web Services EC2 or Microsoft Azure."
+                    cloud.cloud_provider_help "" "Select the cloud in which the BIG-IP VE (Virtual Edition) you are configuring is running."
+
                     cloud.aws_region "Which region do you want to search?" {
                         "Default" => "/#default#",
                         "US East (N. Virginia)" => "us-east-1",
@@ -450,6 +471,7 @@ sys application template /Common/f5.service_discovery {
                     cloud.aws_use_role_help "" "Assuming a role is typically used for cross-account access (for example if your Application servers are in one account and the BIG-IP VE is in another). If you select Yes, you must specify the ARN and External ID in the following questions. See the AWS documentation for details."
                     cloud.aws_role_arn "What is the role Amazon Resource Name (ARN)?"
                     cloud.aws_external_id "What is the External ID?"
+
                     cloud.azure_subscription_id "What is the subscription ID?"
                     cloud.azure_tenant_id "What is the tenant ID?"
                     cloud.azure_client_id "What is the client ID?"
@@ -457,6 +479,22 @@ sys application template /Common/f5.service_discovery {
                     cloud.azure_auth_help "" "Enter the service principal information used to search the Azure subscription for pool members. See https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal for more information."
                     cloud.azure_resource_group "What is the Azure resource group?"
                     cloud.azure_resource_group_help "" "Type the name of the Azure resource group containing the tagged resources."
+
+                    cloud.gce_zone "Which zone do you want to search?" {
+                        "Default" => "/#default#",
+                        "US East 1" => "us-east1",
+                        "US East 4" => "us-east4",
+                        "US Central 1" => "us-central-1",
+                        "US West 1" => "us-west1",
+                        "Europe West 1" => "eu-west1",
+                        "Europe West 2" => "eu-west2",
+                        "Europe West 3" => "eu-west3",
+                        "Asia Northeast 1" => "asia-northeast1",
+                        "Asia East 1" => "asia-east1",
+                        "Asia Southeast 1" => "asia-southeast1",
+                        "Australia Southeast 1" => "australia-southeast1"
+                    }
+                    cloud.gce_zone_help "" "Default is to search the same zone in which the BIG-IP is running."
 
                     pool "Pool"
                     pool.pool_to_use "Do you want to create a new pool or use an existing one?" {
@@ -503,5 +541,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature eDHTmx+2EcPghz8E0y8y89AmS7P0TwbfMRrKweXZqck2GEDtl4uVh7VKp1J7eiGfOOYOOwQfHnaDpiE6PotTKUPll3K+i1Ed24NqrTXJyG+N03WwA33z2h+3OYimIKJTMF+oJI3yJbmcuLJnP0bAVKJyPwVTOLk9v5AFASD5vAm1C0G+LG4YDSlKRlM4k3y2adkbGJELLfGP3AS6IOFPh7TFjxVGG/FcIyxTHvxLwbhUBkx1G3kCbIoj/zWTFbiWcJP8MRXeS0oyCMAZw/PUSBsocHWOgNbiCp8sy4oGmd3gE3iuN5nsl2WcVHzQKPXLopnbLa1k7jwKjkFnc9+A2A==
+    tmpl-signature P4hbhEJec9bwp3ff/k9SUgbG0HW88GMB5i5y/LvuMon75plkFeeklbxhnaOilFgQJibcMjRAkwsdukzY1q9fW9ylcp0Nkwr75FVWyb2FvNZQXVPorjVyaKF4rZySPAmYhhjcxBG97HvJSXZdVlmOAZsv/ddXStN9L+4VLnlNM5q/KWvOnO83yVYoc9oQsQJTfErfZ7he79yoQLVmIMG97m/hOReVVnrnKxsgeJMTMDKzmNTGMBbqNUNEnu+JoID32Aanv7aIz4QbwzOuApzQPqx97Q5Dtie/iGDvdB9Yoki7VqGlgieJjrwNa4tapq6+pru4uJUoAuxDaun8tScx+Q==
 }
