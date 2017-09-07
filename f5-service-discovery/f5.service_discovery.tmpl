@@ -126,9 +126,39 @@ sys application template /Common/f5.service_discovery {
                     }
                 }
 
+                proc url_init {} {
+                    variable url_map
+                    variable url_alphanumeric a-zA-Z0-9
+                    for {set i 0} {$i <= 256} {incr i} {
+                        set c [format %c $i]
+                        if {![string match \[$url_alphanumeric\] $c]} {
+                            set url_map($c) %[format %.2x $i]
+                        }
+                    }
+                    # These are handled specially
+                    array set url_map { " " + \n %0d%0a }
+                }
+
+                proc url_encode {string} {
+                    variable url_map
+                    variable url_alphanumeric
+
+                    # The spec says: "non-alphanumeric characters are replaced by '%HH'"
+                    # 1 leave alphanumerics characters alone
+                    # 2 Convert every other character to an array lookup
+                    # 3 Escape constructs that are "special" to the tcl parser
+                    # 4 "subst" the result, doing all the array substitutions
+
+                    regsub -all \[^$url_alphanumeric\] $string {$url_map(&)} string
+                    # This quotes cases like $url_map([) or $url_map($) => $url_map(\[) ...
+                    regsub -all {[][{})\\]\)} $string {\\&} string
+                    return [subst -nocommand $string]
+                }
+
                 iapp::template start
 
                 install_dependencies
+                url_init
 
                 # constants
                 set YES_ANSWER "yes"
@@ -227,25 +257,23 @@ sys application template /Common/f5.service_discovery {
 
                 switch $::cloud__cloud_provider {
                     aws {
-                        set provider_script_map "
-                            <PROVIDER_OPTIONS>  roleArn=$::cloud__aws_role_arn,externalId=$::cloud__aws_external_id,region=$::cloud__aws_region
-                        "
+                        set provider_options [url_encode roleArn=$::cloud__aws_role_arn,externalId=$::cloud__aws_external_id,region=$::cloud__aws_region]
                     }
                     azure {
-                        set provider_script_map "
-                            <PROVIDER_OPTIONS>  resourceGroup=$::cloud__azure_resource_group,subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,secret=$::cloud__azure_sp_secret
-                        "
+                        set provider_options [url_encode resourceGroup=$::cloud__azure_resource_group,subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,secret=$::cloud__azure_sp_secret]
                     }
                     gce {
-                        set provider_script_map "
-                            <PROVIDER_OPTIONS> zone=$::cloud__gce_zone
-                        "
+                        set provider_options [url_encode zone=$::cloud__gce_zone]
                     }
                 }
 
+                set provider_script_map "
+                    <PROVIDER_OPTIONS>  $provider_options
+                "
+
                 set mapped_script [string map $common_script_map $icall_script]
                 set mapped_script [string map $provider_script_map $mapped_script]
-                set mapped_script [regsub -all $DEFAULT_ANSWER $mapped_script '']
+                set mapped_script [regsub -all [url_encode $DEFAULT_ANSWER] $mapped_script '']
                 iapp::conf create sys icall script ${app}_service_discovery_icall_script \{ definition \{ $mapped_script \} description none events none \}
                 iapp::conf create sys icall handler periodic ${app}_service_discover_icall_handler \{ first-occurrence now interval $::pool__interval script ${app}_service_discovery_icall_script \}
 
@@ -541,5 +569,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature P4hbhEJec9bwp3ff/k9SUgbG0HW88GMB5i5y/LvuMon75plkFeeklbxhnaOilFgQJibcMjRAkwsdukzY1q9fW9ylcp0Nkwr75FVWyb2FvNZQXVPorjVyaKF4rZySPAmYhhjcxBG97HvJSXZdVlmOAZsv/ddXStN9L+4VLnlNM5q/KWvOnO83yVYoc9oQsQJTfErfZ7he79yoQLVmIMG97m/hOReVVnrnKxsgeJMTMDKzmNTGMBbqNUNEnu+JoID32Aanv7aIz4QbwzOuApzQPqx97Q5Dtie/iGDvdB9Yoki7VqGlgieJjrwNa4tapq6+pru4uJUoAuxDaun8tScx+Q==
+    tmpl-signature E1ZLMTShBDtSocLqeTs8xUSGi2uDL6EmNrKvVEoDKw3f0xt+1bCE7Z1WZ6SWilxw4vYvqensJpxRcnwBT0ap1m6GVQRreuMyeerkMPxcwdyYaiJZOntjhqZI6UcUhCNQEq2bUcxE31JL+2GcnynNaMl9RjgoQntPnIKu9XepLVsgi4sIngUQ5hoBPHovuJej11/Bkqhlf9YQkvS2Xnx02svOEKtk4rdaQUflWI9Hr8IMmxO2BNtCTRx9ffqVpQ9OYVvn/8PP9ap3slqi1JnJK8uddC9EI7veB2BQ6Lcpj4qvN2acgycc/Rl4KfL7Ygm4eA33/TkwqZvrX0IJSkCGWA==
 }
