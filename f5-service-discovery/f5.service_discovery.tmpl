@@ -263,7 +263,7 @@ sys application template /Common/f5.service_discovery {
                         set provider_options [url_encode resourceGroup=$::cloud__azure_resource_group,subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,secret=$::cloud__azure_sp_secret]
                     }
                     gce {
-                        set provider_options [url_encode zone=$::cloud__gce_zone]
+                        set provider_options [url_encode region=$::cloud__gce_region]
                     }
                 }
 
@@ -351,9 +351,9 @@ sys application template /Common/f5.service_discovery {
                     }
 
                     optional ( cloud_provider == "gce" ) {
-                        choice gce_zone display "xxlarge"
+                        choice gce_region display "xxlarge"
                         optional ( basic.display_help == "max" ) {
-                            message gce_zone_help
+                            message gce_region_help
                         }
                     }
                 }
@@ -508,7 +508,7 @@ sys application template /Common/f5.service_discovery {
                     cloud.azure_resource_group "What is the Azure resource group?"
                     cloud.azure_resource_group_help "" "Type the name of the Azure resource group containing the tagged resources."
 
-                    cloud.gce_zone "Which zone do you want to search?" {
+                    cloud.gce_region "Which region do you want to search?" {
                         "Default" => "/#default#",
                         "US East 1" => "us-east1",
                         "US East 4" => "us-east4",
@@ -522,7 +522,7 @@ sys application template /Common/f5.service_discovery {
                         "Asia Southeast 1" => "asia-southeast1",
                         "Australia Southeast 1" => "australia-southeast1"
                     }
-                    cloud.gce_zone_help "" "Default is to search the same zone in which the BIG-IP is running."
+                    cloud.gce_region_help "" "Default is to search the same region in which the BIG-IP is running."
 
                     pool "Pool"
                     pool.pool_to_use "Do you want to create a new pool or use an existing one?" {
