@@ -58,13 +58,13 @@ sys application template /Common/f5.service_discovery {
                     set top_dir /config/cloud/$cloud_provider/node_modules
                     switch $cloud_provider {
                         aws {
-                            set provider_tag release-1.5.0
+                            set provider_tag v1.5.0
                         }
                         azure {
-                            set provider_tag release-1.3.0
+                            set provider_tag v1.3.0
                         }
                         gce {
-                            set provider_tag release-1.0.0
+                            set provider_tag v1.0.0
                         }
                     }
 
@@ -73,7 +73,7 @@ sys application template /Common/f5.service_discovery {
                     set dependencies(2,$top_dir/f5-cloud-libs/node_modules/f5-cloud-libs-$cloud_provider) \
                         https://raw.githubusercontent.com/F5Networks/f5-cloud-libs-$cloud_provider/$provider_tag/dist/f5-cloud-libs-$cloud_provider.tar.gz
                     set dependencies(3,/var/config/rest/iapps/f5-cloud-nodes-worker) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-1.0.1-1.noarch.rpm
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-1.1.0-1.noarch.rpm
 
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
@@ -569,5 +569,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature YY8Fj2RwNiUaaxXyFIp7rcKmV3pcr6R8ct4dcrmCrB4h5EUPjf3lzXmzViZVON1tznVdb2i7RHwGdiJ96JuQ+RUV3SwnoA5bksTDiCCL+62ffWWq17uyorEdOtLXPv7q0N8wFj7u6m4MAwmzasI5O69zZME8axkgi7ZaXGwXCyFDPuz2YAsGFSkP2d6MFB4L+/obpLsJyAYZLGkn7K+tOrqcIOXhstCs7bL8ZrEdpbrMokrGzAWSqEgkCijRsg5605YeGQmhqulXEc73J+eW78psmwfUejlb3yxnm1u1YxdETdsmF+Rrya1jsWnKEorJTqFuUK9J9u2tyxvL/33Khw==
+    tmpl-signature cTdOZg5sqtIxoygM/kMAwz/R/xPTHWSiytkguvo6q+/7Zp6A8vJo4gXEt2rdJRJqiUP1Ffbo6tolaXrReLet+dK+KLi+QTL8lq76u906+2O5rJwOVW4tmLrrFUiVZLSvdBDl2vyGHIaqyV1KWTdnW5GGlEB0PslNYKPo6AFLR+X+dYmrr739JV1lYHJ2gBIUIM/PjIa4CnBpnzoD3dEmkpQIoYOXCJqQ0sZJtn/nVrdZTWgxDSqOZg9wUs5GjS62m959cngCKQRjkFUCRC3HVfMOHNJI7RqZ6FOZu15O70x3xIWSJOr39r+m5ncQXl+3kTqqokfmupio1Am7wCGnNw==
 }
