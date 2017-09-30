@@ -16,7 +16,7 @@ sys application template /Common/f5.service_discovery {
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) c7b1c61ea6393517581fc9e6fc0c7b75120c3176ac381183728e889324f9f530d6f3d363cf9ef1d25067c838d2294dca43c839bba8dc22ae2231808ae8354ca6
+                        set hashes(f5-cloud-libs.tar.gz) 5b5035fe7e1d98260be409cc29d65da49bcaaa9becb4124b308023ce8790439356a2b85de4ce5a4433532967e1d5f13379e98eeadcf251b607032f47481d832f
                         set hashes(f5-cloud-libs-aws.tar.gz) 279254b05d175df4ba1155fa810b3ea66a38e69198d7a6840ac9443ce730a5997e12c3b76af76ebadf13550d8bb0d45a5b09badfff4aac89e75d121bc166358d
                         set hashes(f5-cloud-libs-azure.tar.gz) 6414f46344153eb2017b17bbbf09309c50c049dc2f008f06213df5a29b0dcd390667dc4dd45d4893a14ca25f6a70c3a57384ec88345e90949e8650f6250fe624
                         set hashes(f5-cloud-libs-gce.tar.gz) 6ef33cc94c806b1e4e9e25ebb96a20eb1fe5975a83b2cd82b0d6ccbc8374be113ac74121d697f3bfc26bf49a55e948200f731607ce9aa9d23cd2e81299a653c1
@@ -569,5 +569,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature cTdOZg5sqtIxoygM/kMAwz/R/xPTHWSiytkguvo6q+/7Zp6A8vJo4gXEt2rdJRJqiUP1Ffbo6tolaXrReLet+dK+KLi+QTL8lq76u906+2O5rJwOVW4tmLrrFUiVZLSvdBDl2vyGHIaqyV1KWTdnW5GGlEB0PslNYKPo6AFLR+X+dYmrr739JV1lYHJ2gBIUIM/PjIa4CnBpnzoD3dEmkpQIoYOXCJqQ0sZJtn/nVrdZTWgxDSqOZg9wUs5GjS62m959cngCKQRjkFUCRC3HVfMOHNJI7RqZ6FOZu15O70x3xIWSJOr39r+m5ncQXl+3kTqqokfmupio1Am7wCGnNw==
+    tmpl-signature TNVHMTKScJr7mDkKmQi3sbWaSwZDolv3X6yt7T3NUn5v3NKaVqoLle09nutF+ehoA+PjQHQYm6vNGC3RHIvEpe4C0dqQyB8AtD0ubho3/9+lcr8ZHccC4+HCx70duGTzW7rz3WP1O2BzOYMa2DU395mSigdbMJ26FVQtd0dQdrvt6KJrqI5xdP3XCDxOCR5VpMv15Ibaq3OSZwu8NPcpJXgUO168+WRqTH4hf5gqj2jp+rhsfgdwFEeS6TDBNGhtptYmm2dXZR43e/9vOYi4AU8dQi4OQarOi1NhWIAxDn8oDQpen791XrLLAfiYA7HVa1YURXfVntLJdgGjDJaQrg==
 }
