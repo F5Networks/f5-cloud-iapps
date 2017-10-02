@@ -18,7 +18,7 @@ sys application template /Common/f5.service_discovery {
 
                         set hashes(f5-cloud-libs.tar.gz) 5b5035fe7e1d98260be409cc29d65da49bcaaa9becb4124b308023ce8790439356a2b85de4ce5a4433532967e1d5f13379e98eeadcf251b607032f47481d832f
                         set hashes(f5-cloud-libs-aws.tar.gz) 279254b05d175df4ba1155fa810b3ea66a38e69198d7a6840ac9443ce730a5997e12c3b76af76ebadf13550d8bb0d45a5b09badfff4aac89e75d121bc166358d
-                        set hashes(f5-cloud-libs-azure.tar.gz) 6414f46344153eb2017b17bbbf09309c50c049dc2f008f06213df5a29b0dcd390667dc4dd45d4893a14ca25f6a70c3a57384ec88345e90949e8650f6250fe624
+                        set hashes(f5-cloud-libs-azure.tar.gz) 3c52145334fe80da577f980cdfbb1ef71fa4284b2f7fb4fa6f241cf50528e9fdc8df088a8312c3f6b90d3db198c787f7c10739e4098efb071cc29bf0ed70437b
                         set hashes(f5-cloud-libs-gce.tar.gz) 6ef33cc94c806b1e4e9e25ebb96a20eb1fe5975a83b2cd82b0d6ccbc8374be113ac74121d697f3bfc26bf49a55e948200f731607ce9aa9d23cd2e81299a653c1
                         set hashes(f5-cloud-nodes-worker-1.1.0-1.noarch.rpm) 15ccf20965bede3a3788cfe430085f30364a3e908b4dec4e607e7ddd2b8689e42c92126c4644480852c63e9baee9905415d2209d6bf2007e7c25fc25ea29eb16
 
@@ -52,7 +52,7 @@ sys application template /Common/f5.service_discovery {
                     set cloud_provider $::cloud__cloud_provider
                     set wait_for_restnoded 0
 
-                    set cloud_libs_tag v3.4.0
+                    set cloud_libs_tag v3.4.1
                     set nodes_worker_tag v1.1.0
 
                     set top_dir /config/cloud/$cloud_provider/node_modules
@@ -569,5 +569,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature Ln6VW7qHPbO3Rbd0nSCivXWfuV9c8fGs6NIDiHkOmumto6RR0H3a+Gif7rz/rabrYxlKvKVKCkPcRGaOdTGbR5NlW5bdUB8Udw7H42r0fcWIio8tc9KbudoB6P7VbSZPgUX/VVZGH6L41Kpr4MxTWxzzeIqJ2aDQnJrsVfYcrsAZYbba+uc0wfqYK9oURYhVUy3EVYixkcyTNBl3cMJugbAcyD7NTNQhfHp4apKXykWWfXEnh1dGepGtEOLvbkjDrk/n8lLGB3BDS1YHBy6gZTidhMT4oFHkhbr+3AqFVYeENmNPm7RStNXQQ43tYQIOHdp9RmOBVKe9414V548Gog==
+    tmpl-signature IcJuDo/New3OoKUNqe/yH4imRW3gSu8srfAJe1N4/IkI8y0mvmribMLUyWv31ee1cQki4b4p9CsK9gRwI/cuQNghhw4P0kIiv+u2JLiQzBW7oaceNfh9d6g8vbvxXkJW56u4L6tNQWhP+oXWBoW9WDAh5peT75Qw1igul1/t4nJzqlGklwqcXxJkK9gyykh3ytN57WbA4vO7VZ2Co1jiFWCOcvRYuDuIuLndhEUqiikkgQpVdgX/ipij/7pvz0chcsPbcKndnsLWL0tBEcuT5IzFgaLj1OjF9+YAU0WJ3GDpzx8kCDBVQXlNZXHP1CNFoJQ0Aiqv2bchQoeGd7+ukg==
 }
