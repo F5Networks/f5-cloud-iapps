@@ -1,0 +1,29 @@
+image: node:4
+
+stages:
+    - update
+    - notify
+
+update_hash:
+    tags:
+        - docker-executor
+    stage: update
+    only:
+        - triggers
+    script:
+        - if [[ -n "${UPDATE_HASH_REPO}" && "${UPDATE_HASH_BRANCH}" && "${UPDATE_HASH_FILE}" ]]; then
+        -     ./build/updateHash.sh "${UPDATE_HASH_REPO}" "${UPDATE_HASH_BRANCH}" "${UPDATE_HASH_FILE}"
+        -     ./build/commitAndPush.sh
+        - fi
+
+ # Do not run when triggered:
+ #   - triggers will end up doing a commit and the commit runs notify
+notify:
+    tags:
+        - docker-executor
+    stage: notify
+    except:
+        - master
+        - triggers
+    script:
+        - ./build/notifyProjects.sh
