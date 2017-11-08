@@ -66,7 +66,7 @@ proc format_msg msg {
 		regsub -all "=\"" $msg "\":\"" msg
 		regsub -all "\"," $msg "\",\"" msg
 		set final_msg "\[\{\"time\":\"$date\",\"host\":\"$static::tcl_platform(machine)\",\"logSource\":\"BIGIP\",\"bigipVersion\":\"$static::tcl_platform(osVersion)\",$msg\}\]"
-	} 
+	}
 	<EXTRA_FORMAT>
 	return $final_msg
 }
@@ -287,7 +287,7 @@ when HTTP_RESPONSE_DATA {
 	set seq_token ""
 	set t 50
 	#call logger "Seq Token Status: [table lookup seq_token_status]" 0
-    for {set i 0} { $i < $t } {incr i} {
+	for {set i 0} { $i < $t } {incr i} {
         if { [table lookup seq_token_status] == "busy" } {
             # Keep trying after delay
             after 10
@@ -297,7 +297,7 @@ when HTTP_RESPONSE_DATA {
             set seq_token [table lookup seq_token]
             break
         }
-    }
+	}
 	if { $seq_token equals "" } {
 		set seq_token null
 	} else {
