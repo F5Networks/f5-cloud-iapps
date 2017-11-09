@@ -85,7 +85,6 @@ proc logger {msg level} {
 	# Loop through and log each chunk of the msg
 	set max_chars 900
 	set remaining $msg
-	set position 0
 	set count 1
 	if {[string length $remaining] < $max_chars}{
 		# no need to chunk if total msg is less than max_chars
@@ -94,11 +93,10 @@ proc logger {msg level} {
 	}
 	while {[string length $remaining] > $max_chars}{
 		# Get the current chunk to log
-		set current [string range $remaining 0 [expr {$position + $max_chars - 1}]]
+		set current [string range $remaining 0 [expr { $max_chars - 1}]]
 		log local0.info "chunk ${count}=${current}"
-		incr position [string length $current]
 		# Get the next chunk to log
-		set remaining [string range $remaining $position end]
+		set remaining [string range $remaining $max_chars end]
 		incr count
 	}
 	if {[string length $remaining]}{
