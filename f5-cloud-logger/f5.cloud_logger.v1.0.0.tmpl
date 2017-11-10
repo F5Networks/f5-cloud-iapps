@@ -474,6 +474,7 @@ section intro {
 				return [expr {[iapp::tmos_version >= 13.0] ? "yes" : "no"}]
 			}
         }
+		message hello "This iApp will configure logging for BIG-IP modules to be sent to a specific set of cloud analytics solutions.  The solution will create logging profiles which can be attached to the appropriate objects (VS, APM policy, etc.) required which will result in logs being sent to the selected cloud analaytics solution. Note: Please be aware that this may (depending on level of logging required) affect performance of the BIG-IP as a result of the processing happening to construct and send the log messages over HTTP to the cloud analytics solution."
     }
 section basic {
 		choice advanced display "xxlarge" default "no" {
@@ -541,7 +542,7 @@ section logging_config {
 					"Don't include DOS protection logging" => "no"
 				}
 				optional ( basic.help == "show" ) {
-					message dos_logs_help "Select whether you would like to include DOS logging or not."
+					message dos_logs_help "Select whether you would like to include DOS logging within the ASM logging profile."
 				}
 			}
 		}
@@ -598,6 +599,7 @@ section internal_config {
 }
 text {
 	intro "F5 cloud logging and analytics solution"
+	intro.hello "Introduction"
 
 	basic "Template Options"
 	basic.advanced "Which configuration mode do you want to use?"
@@ -611,6 +613,7 @@ text {
 	analytics_config.shared_key "What is the shared access key (primary or secondary) for the Azure OMS workspace?"
 	analytics_config.shared_key_help "Note:"
 	analytics_config.log_type "What would you like the log type to be called?"
+	analytics_config.log_type_help "Note:"
 	analytics_config.aws_region "Which AWS region of the CloudWatch Logs provider would you like to send logs?"
 	analytics_config.aws_region_help "Note:"
 	analytics_config.log_group_name "What is the AWS CloudWatch Logs group name?"
