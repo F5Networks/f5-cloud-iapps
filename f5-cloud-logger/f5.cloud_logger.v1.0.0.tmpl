@@ -219,6 +219,7 @@ when HTTP_RESPONSE_DATA {
 	######## End iRules Declaration ########
 
 	set app $tmsh::app_name
+	set dynamic_mgmt_port [tmsh::get_field_value [lindex [tmsh::get_config "sys httpd ssl-port"] 0] "ssl-port"]
 	set is_v13_0 [iapp::tmos_version >= 13.0]
 	set path [tmsh::pwd]
 
@@ -241,8 +242,8 @@ when HTTP_RESPONSE_DATA {
 	set dos_logs [expr { $asm_log_choice && [info exists ::logging_config__dos_logs] && [iapp::is ::logging_config__dos_logs yes] }]
 	set apm_log_choice [expr { [info exists ::logging_config__apm_log_choice] && [iapp::is ::logging_config__apm_log_choice yes] }]
 	set req_log_choice [expr { [info exists ::logging_config__req_log_choice] && [iapp::is ::logging_config__req_log_choice yes] }]
-	set mgmt_hostname [expr { [iapp::is ::internal_config__remediation_link custom] ? "$::internal_config__mgmt_hostname" : {$static::tcl_platform(machine)} }]
-	set mgmt_port [expr { [iapp::is ::internal_config__remediation_link custom] ? "$::internal_config__mgmt_port" : "443" }]
+	set mgmt_hostname [expr { [iapp::is ::internal_config__hostname custom] ? "$::internal_config__mgmt_hostname" : {$static::tcl_platform(machine)} }]
+	set mgmt_port [expr { [iapp::is ::internal_config__port custom] ? "$::internal_config__mgmt_port" : "$dynamic_mgmt_port" }]
 	set key [iapp::substa key_arr($analytics_solution)]
 	set secret [iapp::substa secret_arr($analytics_solution)]
 	set format_vs_port [expr { [iapp::is ::basic__advanced yes] && [info exists ::internal_config__format_vs_port] ? $::internal_config__format_vs_port : "1001" }]
@@ -512,6 +513,7 @@ section analytics_config {
 				message shared_key_help "Enter the primary or secondary shared key for the OMS workspace."
 			}
 			string log_type display "large" default "F5CustomLog" required
+			message log_type_value_help "The log type cannot contain special characters or numeric characters."
 			optional ( basic.help == "show" ) {
 				message log_type_help "The log type inputted here is used as the log type when submitting to Azure OMS, you can then search for logs based on the log type name plus '_CL', for example: F5CustomLog_CL"
 			}
@@ -605,12 +607,18 @@ section logging_config {
 		}
 }
 section internal_config {
-		choice remediation_link display "xxlarge" default "yes" {
-			"Use actual BIG-IP management hostname and port (443)" => "yes"  ,
-			"Use custom BIG-IP management hostname and port" => "custom"
+		choice hostname display "xxlarge" default "yes" {
+			"Use dynamic BIG-IP management hostname" => "yes"  ,
+			"Use custom BIG-IP management hostname" => "custom"
 		}
-		optional ( remediation_link == "custom" ) {
-			string mgmt_hostname display "xxlarge" default "examplebigip.f5.com" required
+		optional ( hostname == "custom" ) {
+			string mgmt_hostname display "xxlarge" default "bigip.f5.com" required
+		}
+		choice port display "xxlarge" default "yes" {
+			"Use dynamic BIG-IP management port" => "yes"  ,
+			"Use custom BIG-IP management port" => "custom"
+		}
+		optional ( port == "custom" ) {
 			string mgmt_port display "small" validator "PortNumber" default "443" required
 		}
 		optional ( basic.advanced == "yes" ) {
@@ -639,6 +647,7 @@ text {
 	analytics_config.shared_key "What is the shared access key (primary or secondary) for the Azure OMS workspace?"
 	analytics_config.shared_key_help "Note:"
 	analytics_config.log_type "What would you like the log type to be called?"
+	analytics_config.log_type_value_help "Note:"
 	analytics_config.log_type_help "Note:"
 	analytics_config.aws_region "Which AWS region of the CloudWatch Logs provider would you like to send logs?"
 	analytics_config.aws_region_help "Note:"
@@ -664,8 +673,9 @@ text {
 	logging_config.req_log_options_help "Note:"
 
 	internal_config "Solution Configuration"
-	internal_config.remediation_link "Would you like to use the actual BIG-IP managment hostname?"
+	internal_config.hostname "Would you like to use the dynamic BIG-IP managment hostname?"
 	internal_config.mgmt_hostname "What is the mgmt FQDN or IP you would like to use?"
+	internal_config.port "Would you like to use the dynamic BIG-IP managment port?"
 	internal_config.mgmt_port "What is the mgmt port you would like to use ?"
 	internal_config.format_vs_port "What would you like the format VS port to be?"
 	internal_config.send_vs_port "What would you like the send (HTTP Post) VS port to be?"
