@@ -8,30 +8,38 @@ sys application template f5.cloud_logger.v1.0.0 {
             }
             implementation {
 	## Define some proc(s) for use in implementation
-     proc tmsh_exe { command } {
-          puts $command
-          exec /usr/bin/tmsh -c $command
-     }
-     proc format_jsonlist { input } {
-          regsub -all "\"|\\\]|\\\[|\n" $input "" input
-          regsub -all "," $input " " input
-          return $input
-     }
-     proc format_poolmembers {input} {
-          set poolmembers ""
-          set dataset [split [format_jsonlist $input] " "]
-          foreach item $dataset {
-               set member [split $item ":"]
-               #check to see if this is an ip
-               if {[regexp {^((([2][5][0-5]|([2][0-4]|[1][0-9]|[0-9])?[0-9])\.){3})([2][5][0-5]|([2][0-4]|[1][0-9]|[0-9])?[0-9])$} [lindex $member 0]]} {
-                    append poolmembers "mbr-$item \{ address [lindex $member 0] \}"
-               } else {
-                    #must be FQDN - let tmsh do validation
-                    append poolmembers "mbr-$item \{ fqdn \{ autopopulate enabled name [lindex $member 0] \} \}"
-               }
-          }
-          return $poolmembers
-     }
+	proc tmsh_exe { command } {
+		puts $command
+		exec /usr/bin/tmsh -c $command
+	}
+	proc format_jsonlist { input } {
+		regsub -all "\"|\\\]|\\\[|\n" $input "" input
+		regsub -all "," $input " " input
+		return $input
+	}
+	proc format_poolmembers {input} {
+		set poolmembers ""
+		set dataset [split [format_jsonlist $input] " "]
+		foreach item $dataset {
+			set member [split $item ":"]
+			#check to see if this is an ip
+			if {[regexp {^((([2][5][0-5]|([2][0-4]|[1][0-9]|[0-9])?[0-9])\.){3})([2][5][0-5]|([2][0-4]|[1][0-9]|[0-9])?[0-9])$} [lindex $member 0]]} {
+				append poolmembers "mbr-$item \{ address [lindex $member 0] \}"
+			} else {
+				#must be FQDN - let tmsh do validation
+				append poolmembers "mbr-$item \{ fqdn \{ autopopulate enabled name [lindex $member 0] \} \}"
+			}
+		}
+		return $poolmembers
+	}
+	proc format_req_logging {input} {
+	# Format the input as key/value pairs in the same format as "Splunk" on the BIG-IP
+	  set req_template EVENT_SOURCE=\\\"request_logging\\\",BIGIP_HOSTNAME=\\\"\$BIGIP_HOSTNAME\\\"
+	  foreach item $input {
+		   append req_template ,${item}=\\\"\$${item}\\\"
+	  }
+	  return $req_template
+	}
 
 	package require iapp 1.3.0
 	iapp::template start
@@ -442,7 +450,7 @@ when HTTP_RESPONSE_DATA {
 		# Format what is sent as key/value pairs in the same format as "Splunk" on the BIG-IP is sent
 		# that way it will be processed in the same manner
 		# The list of request logging parameters are available here: https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/bigip-external-monitoring-implementations-12-0-0/3.html
-		set req_log_template {event_src=\"request_logging\",client_ip=\"$CLIENT_IP\",server_ip=\"$SERVER_IP\",http_method=\"$HTTP_METHOD\",http_uri=\"$HTTP_URI\",http_request=\"$HTTP_REQUEST\",virtual_ip=\"$VIRTUAL_IP\"}
+		set req_log_template [format_req_logging $::logging_config__req_log_options]
 		iapp::conf create ltm profile request-log ${app}_remote_logging defaults-from request-log request-log-pool ${path}/${app}_format_pool request-log-protocol mds-tcp request-log-template $req_log_template request-logging enabled
 	}
 
@@ -570,12 +578,30 @@ section logging_config {
 				}
 			}
 		}
-		choice req_log_choice display "xlarge" default "yes" {
+		choice req_log_choice display "xlarge" default "no" {
 			"Enable LTM request logging" => "yes"  ,
 			"Don't enable LTM request logging" => "no"
 		}
 		optional ( basic.help == "show" ) {
-			message req_log_choice_help "Select whether you would like to enable LTM (HTTP) request logging, you will need to attach the LTM request log profile created by this iApp to the virtual servers desired."
+			message req_log_choice_help "Select whether you would like to enable LTM request logging, you will need to attach the LTM request log profile created by this iApp to the virtual servers desired."
+		}
+		optional ( req_log_choice == "yes" ) {
+			multichoice req_log_options display "xlarge" default { "CLIENT_IP", "SERVER_IP", "HTTP_METHOD", "HTTP_URI", "VIRTUAL_NAME" } {
+				"CLIENT_IP" => "CLIENT_IP",
+				"CLIENT_PORT" => "CLIENT_PORT",
+				"SERVER_IP" => "SERVER_IP",
+				"HTTP_METHOD" => "HTTP_METHOD",
+				"HTTP_URI" => "HTTP_URI",
+				"HTTP_QUERY" => "HTTP_QUERY",
+				"HTTP_VERSION" => "HTTP_VERSION",
+				"VIRTUAL_IP" => "VIRTUAL_IP",
+				"VIRTUAL_PORT" => "VIRTUAL_PORT",
+				"VIRTUAL_NAME" => "VIRTUAL_NAME",
+				"VIRTUAL_POOL_NAME" => "VIRTUAL_POOL_NAME"
+			}
+			optional ( basic.help == "show" ) {
+				message req_log_options_help "Select which request parameters to send in the log message. The complete list and descriptions can be found here: https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/bigip-external-monitoring-implementations-12-0-0/3.html"
+			}
 		}
 }
 section internal_config {
@@ -634,6 +660,8 @@ text {
 	logging_config.apm_log_level_help "Note:"
 	logging_config.req_log_choice "Would you like to enable LTM Request logging?"
 	logging_config.req_log_choice_help "Note:"
+	logging_config.req_log_options "What Request parameters would you like to send in the log?"
+	logging_config.req_log_options_help "Note:"
 
 	internal_config "Solution Configuration"
 	internal_config.remediation_link "Would you like to use the actual BIG-IP managment hostname?"
