@@ -185,6 +185,8 @@ sys application template /Common/f5.service_discovery {
                     *   { 'GET $::monitor__uri HTTP/1.1\\r\\nHost: $hostname\\r\\nConnection: Close\\r\\n\\r\\n'}
                 }
 
+                set partition [lindex [split [tmsh::pwd] /] 1]
+
                 # MONITOR
                 set new_monitor [iapp::is ::monitor__monitor $::CREATE_NEW_ANSWER]
 
@@ -211,7 +213,7 @@ sys application template /Common/f5.service_discovery {
 
                 set new_pool [iapp::is ::pool__pool_to_use "/#create_new#"]
                 if { $new_pool } {
-                    set pool_name ${app}.app/${app}_pool
+                    set pool_name /${partition}/${app}.app/${app}_pool
                 }
                 else {
                     set pool_name $::pool__pool_to_use
@@ -233,10 +235,17 @@ sys application template /Common/f5.service_discovery {
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
                     set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=<PROVIDER_OPTIONS>);
-                                                    echo \$NODE_JSON | jq -r '\[.\[\] | \"\\(.ip):<MEMBER_PORT> { address \\(.ip) description \\(.id) connection-limit <CONNECTION_LIMIT> }\"\] | join (\" \")'"]
+                        echo \$NODE_JSON | jq -r 'if type == \"array\" then \[.\[\] | \"\\(.ip):<MEMBER_PORT> { address \\(.ip) description \\(.id) connection-limit <CONNECTION_LIMIT> }\"\] | join (\" \") elif has(\"code\") then error(\"error from node worker: \" + .message) else error(\"unxpected response from node worker\") end'"]
 
-                    tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \}
-
+                    if { $members eq "" } {
+                        puts "Service Discovery: No matching members found"
+                    }
+                    elseif { [string first "jq: error:" $members] == 0 } {
+                        puts "Service Discovery: $members"
+                    }
+                    elseif { $members ne "" } {
+                        tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \}
+                    }
                 }
 
                 if { [iapp::is ::cloud__aws_use_role $NO_ANSWER] } {
@@ -246,7 +255,7 @@ sys application template /Common/f5.service_discovery {
 
                 set common_script_map "
                     <CLOUD>             $::cloud__cloud_provider
-                    <APP_NAME>          ${app}.app/${app}
+                    <APP_NAME>          /${partition}/${app}.app/${app}
                     <POOL_TO_USE>       $pool_name
                     <MEMBER_PORT>       $::pool__member_port
                     <CONNECTION_LIMIT>  $::pool__member_conn_limit
@@ -563,7 +572,7 @@ sys application template /Common/f5.service_discovery {
         }
     }
     description none
-    ignore-verification false
+    ignore-verification true
     requires-bigip-version-max none
     requires-bigip-version-min 12.1.0
     requires-modules { ltm }
