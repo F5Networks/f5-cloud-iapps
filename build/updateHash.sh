@@ -1,11 +1,10 @@
-REPO="$1"
-BRANCH="$2"
-FILE="$3"
+PROJECT_ID="$1"
+REPO="$2"
+BRANCH="$3"
+FILE="$4"
 
-URL=${CM_BASE_URL}/${REPO}/raw/${BRANCH}/${FILE}
-echo URL "$URL"
-
-pushd "$(dirname "$0")"
+RELEASE=^release-.*
+HOTFIX=^hf-.*
 
 if [ `uname` == 'Darwin' ]; then
     SED_ARGS="-E -i .bak"
@@ -16,9 +15,30 @@ fi
 # grab the file name from the last part of the relative file path
 FILE_NAME=${FILE##*/}
 echo FILE_NAME "$FILE_NAME"
+DOWNLOAD_LOCATION=/tmp/"$FILE_NAME"
+
+if [[ "$BRANCH" =~ $RELEASE || "$BRANCH" =~ $HOTFIX ]]; then
+    echo Using build artifact
+    URL="${CI_BASE_URL}/${PROJECT_ID}/builds/artifacts/$BRANCH/download?job=package"
+    echo URL "$URL"
+    curl -s --insecure -o ${DOWNLOAD_LOCATION}.zip -H "PRIVATE-TOKEN: $API_TOKEN" "$URL"
+    echo Unzipping build
+    unzip ${DOWNLOAD_LOCATION}.zip
+    mv dist/* "$DOWNLOAD_LOCATION"
+else
+    echo Using dist directory
+    URL=${CM_BASE_URL}/${REPO}/raw/${BRANCH}/${FILE}
+    echo URL "$URL"
+    curl -s --insecure -o "$DOWNLOAD_LOCATION" "$URL"
+fi
+
+pushd "$(dirname "$0")"
+
+# grab the file name from the last part of the relative file path
+FILE_NAME=${FILE##*/}
+echo FILE_NAME "$FILE_NAME"
 
 # download the file and calculate hash
-DOWNLOAD_LOCATION=/tmp/"$FILE_NAME"
 curl -s --insecure -o "$DOWNLOAD_LOCATION" "$URL"
 
 OLD_HASH=$(grep "$FILE_NAME" ../f5-service-discovery/f5.service_discovery.tmpl | grep 'set hashes' | awk '{print $3}')
