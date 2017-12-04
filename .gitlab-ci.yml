@@ -11,8 +11,8 @@ update_hash:
     only:
         - triggers
     script:
-        - if [[ -n "${UPDATE_HASH_REPO}" && "${UPDATE_HASH_BRANCH}" && "${UPDATE_HASH_FILE}" ]]; then
-        -     ./build/updateHash.sh "${UPDATE_HASH_REPO}" "${UPDATE_HASH_BRANCH}" "${UPDATE_HASH_FILE}"
+        - if [[ -n "${UPDATE_HASH_PROJECT_ID}" && -n "${UPDATE_HASH_REPO}" && "${UPDATE_HASH_BRANCH}" && "${UPDATE_HASH_FILE}" ]]; then
+        -     ./build/updateHash.sh "${UPDATE_HASH_PROJECT_ID}" "${UPDATE_HASH_REPO}" "${UPDATE_HASH_BRANCH}" "${UPDATE_HASH_FILE}"
         -     ./build/commitAndPush.sh
         - fi
 
