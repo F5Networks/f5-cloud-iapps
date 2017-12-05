@@ -4,6 +4,13 @@ stages:
     - update
     - notify
 
+variables:
+  GIT_STRATEGY: fetch
+
+cache:
+    paths:
+        - node_modules/
+
 update_hash:
     tags:
         - docker-executor
@@ -12,6 +19,8 @@ update_hash:
         - triggers
     script:
         - if [[ -n "${UPDATE_HASH_PROJECT_ID}" && -n "${UPDATE_HASH_REPO}" && "${UPDATE_HASH_BRANCH}" && "${UPDATE_HASH_FILE}" ]]; then
+        -     apt-get update
+        -     apt-get install -y unzip
         -     ./build/updateHash.sh "${UPDATE_HASH_PROJECT_ID}" "${UPDATE_HASH_REPO}" "${UPDATE_HASH_BRANCH}" "${UPDATE_HASH_FILE}"
         -     ./build/commitAndPush.sh
         - fi
