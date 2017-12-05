@@ -16,9 +16,9 @@ sys application template /Common/f5.service_discovery {
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) ceba98b51925d929f6a4a4868f3bf2c8dc5a4e3f936dc6f773becb2b077b205e09d69dae40f2dd741a9abebdda17b2b680c19673776b78a8cbc66f4eb3a402a6
-                        set hashes(f5-cloud-libs-aws.tar.gz) a87d276a2d2c1245d97d6b8e4be899e6adb4042944e4ea86ea35f70f82c79d2bc59b51d5ab153e11750c5564bbd8d65ae24a9261b868cf9a01d5dd9704f0ed68
-                        set hashes(f5-cloud-libs-azure.tar.gz) c5c7505e279346402af22f0b4506409f83fed315e1603d25e75a8f366e5c5fa66b98230b7c1e199969300c37f5abb454dc1bdf170203d67d49fee2ad0b85eedc
+                        set hashes(f5-cloud-libs.tar.gz) d826c6782738511455cf250135a9cb148d15edbba4b2745696299833b601518582c7e6fc64c919f6c6c46b5b5232e9062ae797a18cbbeda5b6b229e1c013738f
+                        set hashes(f5-cloud-libs-aws.tar.gz) 5a8de4c3eef665a1b1ad72797f3133709ba10ef4bd3fee401003a5c9beb22d2e699ab4a0891ed70b66976bf28cbe87915bfe4128f5ecd6ebe7fb0d26a39227bd
+                        set hashes(f5-cloud-libs-azure.tar.gz) 53d06cd2ed957c546993c21a3d8454d224a918ecfd75d87be8879e880fce8fdb0553806b0c32569338c7513f489ce9c4a4cbf26c89f88dd85a0478f608d325df
                         set hashes(f5-cloud-libs-gce.tar.gz) 6ef33cc94c806b1e4e9e25ebb96a20eb1fe5975a83b2cd82b0d6ccbc8374be113ac74121d697f3bfc26bf49a55e948200f731607ce9aa9d23cd2e81299a653c1
                         set hashes(f5-cloud-nodes-worker-1.1.0-1.noarch.rpm) 15ccf20965bede3a3788cfe430085f30364a3e908b4dec4e607e7ddd2b8689e42c92126c4644480852c63e9baee9905415d2209d6bf2007e7c25fc25ea29eb16
 
@@ -578,5 +578,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature jn7WOcPiASkd9jD6LPP07wWp5/o+AMO+bbhLIH8xfpH6SYf1VXcU4o/ZC8/cZXRIp8zy0oXSVjZRFvd9EVfBGJ/GHzL7ZUvTRnax+a8Nqij3ho0txeyF00q6FC0bRGnYhlvMKHZNjwiy2SrIq3H528M6fd1iPin7BYxRhKmSEebOz7m24Pbhrf3wc1yQ+3GzM/D6sHKx3p6lFj9N0q3khSyvBtB8xPmCOO35Q3PspTqvFGooDDoD+jUDL6ThmFq28b6ixtTKHPO2bq9LkIPiI6WBhe8ZLtmjayC6T8tpiwCo5FfketAvx8Ak8nE0xwlFvW6nTUWKUoxyh+XqFIDOeg==
+    tmpl-signature q/eU6AdD4sGvjeXc1WD+s1AerGGzePXAPyNgsWetp7VHsFj04d32u8Tn8DJSNW9023Zz8vZ8J8y+7lIbVVT+1VlmrSF18NLmmKF3ryMT1QyKM5BpWqy8GJkUgOdptgSMC8z3TunFAsigMjOXvTeVspB3c8IZpb9F8pNHUjuq9GBO75QmFPyYWYBGYADuToKNHV1qtxvKN5p/0ZvbtB24fBetEXrlwh39aVZpwbD3p5H6qBEjvwBzdylSZobDAxf2Mdo3u64DcdKS6qO3626pczby7KKn/pBSfOILBJ60+HWVKQ9iZvDoaCfvKzvMxsXqpZLGgnZ+5mhTqZUpv2nBdw==
 }
