@@ -1,3 +1,6 @@
+[![Slack Status](https://f5cloudsolutions.herokuapp.com/badge.svg)](https://f5cloudsolutions.herokuapp.com)
+[![Issues](https://img.shields.io/github/issues/f5networks/f5-cloud-iapps.svg)](https://github.com/f5networks/f5-cloud-iapps/issues)
+
 ## Introduction
 This iApp is designed to provide service discovery within cloud environments.  
 Additional instructions can be found within the iApp itself.
@@ -25,4 +28,3 @@ must be applied to the instance of the BIG-IP running the iApp. The IAM role
 must have at least read permissions for:
 + ec2:describeInstances
 + ec2:describeNetworkInterfaces
-
