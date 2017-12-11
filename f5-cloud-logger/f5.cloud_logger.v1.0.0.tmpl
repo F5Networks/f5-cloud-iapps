@@ -458,7 +458,13 @@ when HTTP_RESPONSE_DATA {
 	# Create APM logging profile
 	if { $apm_log_choice } {
 		set apm_lg_lvl $::logging_config__apm_log_level
-		iapp::conf create apm log-setting ${app}_remote_logging access replace-all-with \{ access \{ log-level \{ access-control $apm_lg_lvl access-per-request $apm_lg_lvl apm-acl $apm_lg_lvl eca $apm_lg_lvl endpoint-management-system $apm_lg_lvl oauth $apm_lg_lvl paa $apm_lg_lvl sso $apm_lg_lvl swg $apm_lg_lvl vdi $apm_lg_lvl \} publisher /Common/${app}_publisher \} \} url-filters replace-all-with \{ urlf \{ filter \{ log-allowed-url false log-blocked-url true log-confimed-url true  \} publisher /Common/${app}_publisher \} \}
+		# Add some additional logging options available in v13.x and above
+		if { $is_v13_0 } {
+			set apm_opt_items "endpoint-management-system $apm_lg_lvl paa $apm_lg_lvl vdi $apm_lg_lvl"
+		} else {
+			set apm_opt_items ""
+		}
+		iapp::conf create apm log-setting ${app}_remote_logging access replace-all-with \{ access \{ log-level \{ access-control $apm_lg_lvl access-per-request $apm_lg_lvl apm-acl $apm_lg_lvl eca $apm_lg_lvl oauth $apm_lg_lvl sso $apm_lg_lvl swg $apm_lg_lvl $apm_opt_items \} publisher /Common/${app}_publisher \} \} url-filters replace-all-with \{ urlf \{ filter \{ log-allowed-url false log-blocked-url true log-confimed-url true  \} publisher /Common/${app}_publisher \} \}
 	}
 	# Create LTM request logging profile
 	if { $ltm_req_log_choice } {
