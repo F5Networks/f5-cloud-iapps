@@ -237,7 +237,7 @@ when HTTP_RESPONSE_DATA {
 
 	# Generic Variables
 	set analytics_solution [expr { [info exists ::analytics_config__analytics_solution] ? "$::analytics_config__analytics_solution" : "azure_oms" }]
-	set fqdn_suffix [expr { [iapp::is ::basic__advanced yes] && [iapp::is ::analytics_config__gov_cloud yes] ? "us" : "com" }]
+	set fqdn_suffix [expr { [iapp::is ::basic__advanced yes] && [iapp::is ::analytics_config__azure_env azureusgov] ? "us" : "com" }]
 	set asm_log_choice [expr { [info exists ::logging_config__asm_log_choice] && [iapp::is ::logging_config__asm_log_choice yes] }]
 	set dos_logs [expr { $asm_log_choice && [info exists ::logging_config__dos_logs] && [iapp::is ::logging_config__dos_logs yes] }]
 	set apm_log_choice [expr { [info exists ::logging_config__apm_log_choice] && [iapp::is ::logging_config__apm_log_choice yes] }]
@@ -527,12 +527,12 @@ section analytics_config {
 		}
 		optional ( analytics_solution == "azure_oms" ) {
 			optional ( basic.advanced == "yes" ) {
-				choice gov_cloud display "large" default "no" {
-					"No" => "no"  ,
-					"Yes" => "yes"
+				choice azure_env display "xlarge" default "azure" {
+					"Azure" => "azure",
+					"Azure US Government" => "azureusgov"
 				}
 				optional ( basic.help == "show" ) {
-					message gov_cloud_help "Select 'Yes' if you are deploying in Azure Government Cloud."
+					message azure_env_help "Select which Azure environment you are deploying into."
 				}
 			}
 			string workspace display "xxlarge" required
@@ -692,8 +692,8 @@ text {
 
 	analytics_config "Analytics Provider"
 	analytics_config.analytics_solution "Which analytics solution are you using?"
-	analytics_config.gov_cloud "Are you deploying into the Azure Government Cloud?"
-	analytics_config.gov_cloud_help "Note:"
+	analytics_config.azure_env "Which Azure environment are you deploying into?"
+	analytics_config.azure_env_help "Note:"
 	analytics_config.workspace "What is the Azure OMS workspace ID?"
 	analytics_config.workspace_help "Note:"
 	analytics_config.shared_key "What is the shared access key (primary or secondary) for the Azure OMS workspace?"
