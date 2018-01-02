@@ -78,7 +78,7 @@ proc format_msg msg {
 	<EXTRA_FORMAT>
 	return $final_msg
 }
-proc configure_auth {final_msg key secret date service region} {
+proc configure_auth {final_msg key secret date host region} {
 	# Handle Creation of Authentication Token
 	<CONFIGURE_AUTH>
 	return $signed_string
@@ -127,7 +127,6 @@ when CLIENT_ACCEPTED {
 	# Need to put this somewhere less visible
 	set ctx(key) "<KEY>"
 	set ctx(secret) "<SECRET>"
-	set ctx(service) "logs"
 	set ctx(region) "<REGION>"
 	# Collect and process in CLIENT_DATA
 	set buf "\n"
@@ -158,7 +157,7 @@ when CLIENT_DATA {
 		  set final_msg [call format_msg $rawmsg]
 		  set date <DATE_CMD>
 		  # Handle Auth Token
-		  set auth_token [call configure_auth $final_msg $ctx(key) $ctx(secret) $date $ctx(service) $ctx(region)]
+		  set auth_token [call configure_auth $final_msg $ctx(key) $ctx(secret) $date $ctx(host) $ctx(region)]
 		  # Compile full HTTP Post
           set fullPOST "<ANALYTICS_POST>"
 
@@ -178,7 +177,7 @@ when CLIENT_CLOSED {
 
 	set final_msg [call format_msg $buf]
 	# Handle Auth
-	set auth_token [call configure_auth $final_msg $ctx(key) $ctx(secret) $date $ctx(service) $ctx(region)]
+	set auth_token [call configure_auth $final_msg $ctx(key) $ctx(secret) $date $ctx(host) $ctx(region)]
 	# Compile full HTTP Post
 	set date [clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT"]
 	set fullPOST "<ANALYTICS_POST>"
@@ -238,6 +237,7 @@ when HTTP_RESPONSE_DATA {
 
 	# Generic Variables
 	set analytics_solution [expr { [info exists ::analytics_config__analytics_solution] ? "$::analytics_config__analytics_solution" : "azure_oms" }]
+	set fqdn_suffix [expr { [iapp::is ::basic__advanced yes] && [iapp::is ::analytics_config__gov_cloud yes] ? "us" : "com" }]
 	set asm_log_choice [expr { [info exists ::logging_config__asm_log_choice] && [iapp::is ::logging_config__asm_log_choice yes] }]
 	set dos_logs [expr { $asm_log_choice && [info exists ::logging_config__dos_logs] && [iapp::is ::logging_config__dos_logs yes] }]
 	set apm_log_choice [expr { [info exists ::logging_config__apm_log_choice] && [iapp::is ::logging_config__apm_log_choice yes] }]
@@ -265,7 +265,7 @@ when HTTP_RESPONSE_DATA {
 	## Account for uniqueness in the iRule(s) based on which analytics solution it is using
 	# Keys: $analytics_solution
 	array set host_arr {
-		azure_oms 			{ ${workspace}.ods.opinsights.azure.com }
+		azure_oms 			{ ${workspace}.ods.opinsights.azure.${fqdn_suffix} }
 		aws_cw 				{ logs.${aws_region}.amazonaws.com }
 		* 					{ not_required }
 	}
@@ -325,10 +325,11 @@ when HTTP_RESPONSE_DATA {
 	set signed_string [b64encode ${token}]}
 		aws_cw 			{set date_stamp [clock format [clock seconds] -format "%Y%m%d"]
 	set signed_headers "content-type;host;x-amz-date;x-amz-target"
-	set req_headers "content-type:application/x-amz-json-1.1\nhost:${service}.${region}.amazonaws.com\nx-amz-date:${date}\nx-amz-target:Logs_20140328.PutLogEvents\n"
+	set req_headers "content-type:application/x-amz-json-1.1\nhost:${host}\nx-amz-date:${date}\nx-amz-target:Logs_20140328.PutLogEvents\n"
 	binary scan [CRYPTO::hash -alg sha256 $final_msg] H* payload_hash
 	set request "POST\n/\n\n${req_headers}\n${signed_headers}\n${payload_hash}"
 	set algorithm "AWS4-HMAC-SHA256"
+	set service "logs"
 	set cred_scope "${date_stamp}/${region}/${service}/aws4_request"
 	binary scan [CRYPTO::hash -alg sha256 $request] H* request_hash
 	set str_to_sign "${algorithm}\n${date}\n${cred_scope}\n${request_hash}"
@@ -406,8 +407,8 @@ when HTTP_RESPONSE_DATA {
 	# create analytics solution pool
 	# Keys: $analytics_solution
 	array set pool_arr {
-		azure_oms { [iapp::conf create ltm pool ${app}_logging_offbox \{ members replace-all-with \{ [format_poolmembers ${workspace}.ods.opinsights.azure.com:443] \} monitor tcp \}] }
-		aws_cw { [iapp::conf create ltm pool ${app}_logging_offbox \{ members replace-all-with \{ [format_poolmembers logs.${aws_region}.amazonaws.com:443] \} monitor tcp \}] }
+		azure_oms { [iapp::conf create ltm pool ${app}_logging_offbox \{ members replace-all-with \{ [format_poolmembers [string map {" " ""} [iapp::substa host_arr($analytics_solution)]:443]] \} monitor tcp \}] }
+		aws_cw { [iapp::conf create ltm pool ${app}_logging_offbox \{ members replace-all-with \{ [format_poolmembers [string map {" " ""} [iapp::substa host_arr($analytics_solution)]:443]] \} monitor tcp \}] }
 		* {}
 	}
 
@@ -525,6 +526,15 @@ section analytics_config {
 			"AWS (CloudWatch)" => "aws_cw"
 		}
 		optional ( analytics_solution == "azure_oms" ) {
+			optional ( basic.advanced == "yes" ) {
+				choice gov_cloud display "large" default "no" {
+					"No" => "no"  ,
+					"Yes" => "yes"
+				}
+				optional ( basic.help == "show" ) {
+					message gov_cloud_help "Select 'Yes' if you are deploying in Azure Government Cloud."
+				}
+			}
 			string workspace display "xxlarge" required
 			optional ( basic.help == "show" ) {
 				message workspace_help "Enter the Azure OMS workspace ID."
@@ -682,6 +692,8 @@ text {
 
 	analytics_config "Analytics Provider"
 	analytics_config.analytics_solution "Which analytics solution are you using?"
+	analytics_config.gov_cloud "Are you deploying into the Azure Government Cloud?"
+	analytics_config.gov_cloud_help "Note:"
 	analytics_config.workspace "What is the Azure OMS workspace ID?"
 	analytics_config.workspace_help "Note:"
 	analytics_config.shared_key "What is the shared access key (primary or secondary) for the Azure OMS workspace?"
