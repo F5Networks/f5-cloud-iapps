@@ -525,6 +525,9 @@ section analytics_config {
 			"Azure (OMS)" => "azure_oms"  ,
 			"AWS (CloudWatch)" => "aws_cw"
 		}
+		optional ( analytics_solution == "aws_cw" ) {
+			message analytics_solution_help "AWS CloudWatch is an available logging destination, however to send data to it requires a synchronous flow of events.  This means that if trying to send to the same CloudWatch Logs Stream from two different devices or if there are a large number of logs being sent in a short time frame some of them will be lost."
+		}
 		optional ( analytics_solution == "azure_oms" ) {
 			optional ( basic.advanced == "yes" ) {
 				choice azure_env display "xlarge" default "azure" {
@@ -692,6 +695,7 @@ text {
 
 	analytics_config "Analytics Provider"
 	analytics_config.analytics_solution "Which analytics solution are you using?"
+	analytics_config.analytics_solution_help "Important Note: "
 	analytics_config.azure_env "Which Azure environment are you deploying into?"
 	analytics_config.azure_env_help "Note:"
 	analytics_config.workspace "What is the Azure OMS workspace ID?"
