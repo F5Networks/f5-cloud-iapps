@@ -27,7 +27,7 @@ F5CustomLog_CL | where logSource_s=="ASM" or device_product_s == "ASM"
 
 Display a count of ASM log events sorted by Client IP
 ```
-F5CustomLog_CL | where logSource_s=="ASM" | summarize count() by attack_type
+F5CustomLog_CL | where logSource_s=="ASM" | summarize count() by ip_client_s
 ```
 
 Display a count of ASM log events sorted by Attack Type
