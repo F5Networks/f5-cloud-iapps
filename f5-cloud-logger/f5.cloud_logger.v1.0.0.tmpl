@@ -50,7 +50,7 @@ sys application template f5.cloud_logger.v1.0.0 {
 proc format_msg msg {
 	set mgmt_hostname <MGMT_HOSTNAME>
 	set mgmt_port <MGMT_PORT>
-	set date [clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT"]
+	set date [clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT" -gmt true]
 	# If ASM strip up to ASM:unit from start
 	if {[set asm [string first "ASM:unit" $msg]] >= 0}{
 		set msg [string range $msg $asm [string length $msg]]
@@ -179,7 +179,7 @@ when CLIENT_CLOSED {
 	# Handle Auth
 	set auth_token [call configure_auth $final_msg $ctx(key) $ctx(secret) $date $ctx(host) $ctx(region)]
 	# Compile full HTTP Post
-	set date [clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT"]
+	set date [clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT" -gmt true]
 	set fullPOST "<ANALYTICS_POST>"
 
 	call logger "Full HTTP Post: $fullPOST" 0
@@ -323,7 +323,7 @@ when HTTP_RESPONSE_DATA {
 	set decoded_key [b64decode $key]
 	set token [CRYPTO::sign -alg hmac-sha256 -key $decoded_key $str_to_sign]
 	set signed_string [b64encode ${token}]}
-		aws_cw 			{set date_stamp [clock format [clock seconds] -format "%Y%m%d"]
+		aws_cw 			{set date_stamp [clock format [clock seconds] -format "%Y%m%d" -gmt true]
 	set signed_headers "content-type;host;x-amz-date;x-amz-target"
 	set req_headers "content-type:application/x-amz-json-1.1\nhost:${host}\nx-amz-date:${date}\nx-amz-target:Logs_20140328.PutLogEvents\n"
 	binary scan [CRYPTO::hash -alg sha256 $final_msg] H* payload_hash
@@ -363,9 +363,9 @@ when HTTP_RESPONSE_DATA {
 	}
 	# Keys: $analytics_solution
 	array set date_arr {
-		azure_oms 		{[clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT"]}
-		aws_cw 			{[clock format [clock seconds] -format "%Y%m%dT%H%M%SZ"]}
-		* 				{[clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT"]}
+		azure_oms 		{[clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT" -gmt true]}
+		aws_cw 			{[clock format [clock seconds] -format "%Y%m%dT%H%M%SZ" -gmt true]}
+		* 				{[clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT" -gmt true]}
 	}
 
 	## Create iRules
