@@ -78,10 +78,32 @@ proc format_msg msg {
 	<EXTRA_FORMAT>
 	return $final_msg
 }
-proc configure_auth {final_msg key secret date host region} {
+proc configure_auth {final_msg access_key secret_key date host region} {
 	# Handle Creation of Authentication Token
 	<CONFIGURE_AUTH>
 	return $signed_string
+}
+proc get_secret_key {} {
+    set secret_key ""
+    # Grab secret_key which should exist in table entry
+	for {set i 0} { $i < 50 } {incr i} {
+        if { [table lookup <IAPP_NAME>_secret_key] != "" } {
+			# Grab secret_key
+            set secret_key [table lookup <IAPP_NAME>_secret_key]
+
+			# Don't log plaintext credential to log location even if debug is enabled
+            #call logger "Decoded credential secret: $secret_key" 0
+			call logger "Secret Key table entry exists and is not empty" 0
+            break
+        } else {
+            # Keep trying after delay until loop expires
+            after 10
+        }
+	}
+	if { $secret_key == "" } {
+		call logger "Error: Secret Key table entry empty" 2
+	}
+	return $secret_key
 }
 proc logger {msg level} {
 	# Generic logger with level to determine what to log
@@ -125,8 +147,8 @@ when CLIENT_ACCEPTED {
 	set ctx(host) "<ANALYTICS_HOSTNAME>"
 	set ctx(full_path) "<ANALYTICS_PATH>"
 	# Need to put this somewhere less visible
-	set ctx(key) "<KEY>"
-	set ctx(secret) "<SECRET>"
+	set ctx(access_key) "<KEY>"
+	set ctx(secret_key) [call get_secret_key]
 	set ctx(region) "<REGION>"
 	# Collect and process in CLIENT_DATA
 	set buf "\n"
@@ -157,7 +179,7 @@ when CLIENT_DATA {
 		  set final_msg [call format_msg $rawmsg]
 		  set date <DATE_CMD>
 		  # Handle Auth Token
-		  set auth_token [call configure_auth $final_msg $ctx(key) $ctx(secret) $date $ctx(host) $ctx(region)]
+		  set auth_token [call configure_auth $final_msg $ctx(access_key) $ctx(secret_key) $date $ctx(host) $ctx(region)]
 		  # Compile full HTTP Post
           set fullPOST "<ANALYTICS_POST>"
 
@@ -177,7 +199,7 @@ when CLIENT_CLOSED {
 
 	set final_msg [call format_msg $buf]
 	# Handle Auth
-	set auth_token [call configure_auth $final_msg $ctx(key) $ctx(secret) $date $ctx(host) $ctx(region)]
+	set auth_token [call configure_auth $final_msg $ctx(access_key) $ctx(secret_key) $date $ctx(host) $ctx(region)]
 	# Compile full HTTP Post
 	set date [clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT" -gmt true]
 	set fullPOST "<ANALYTICS_POST>"
@@ -215,6 +237,24 @@ when HTTP_RESPONSE_DATA {
 	 <TABLE_SEQ>
 }
 	}
+	######## Credential iRule ########
+	set cred_ir {
+when HTTP_REQUEST {
+    # Make sure this is the credentials monitor
+    if { [HTTP::uri] == "/credentials" } {
+        if { [HTTP::header exists Authorization] } {
+            set decoded_secret [findstr [b64decode [findstr [HTTP::header Authorization] "Basic " 6]] "user:" 5]
+
+            # Create/update table entry
+            table set <IAPP_NAME>_secret_key $decoded_secret indefinite
+            # Respond so monitor is up
+            HTTP::respond 200
+        } else {
+            call <FMT_IRULE_NAME>::logger "Error: Authorization Header does not exist for credential monitor" 2
+        }
+    }
+}
+	}
 	######## End iRules Declaration ########
 
 	set app $tmsh::app_name
@@ -224,15 +264,15 @@ when HTTP_RESPONSE_DATA {
 
 
 	# Keys: $analytics_solution
-	array set key_arr {
-		azure_oms { $::analytics_config__shared_key }
+	array set access_key_arr {
+		azure_oms { none }
 		aws_cw { $::analytics_config__access_key }
-		* { not_required }
+		* { none }
 	}
-	array set secret_arr {
-		azure_oms { not_required }
+	array set secret_key_arr {
+		azure_oms { $::analytics_config__shared_key }
 		aws_cw { $::analytics_config__secret_key }
-		* { not_required }
+		* { none }
 	}
 
 	# Generic Variables
@@ -245,17 +285,18 @@ when HTTP_RESPONSE_DATA {
 	set ltm_req_log_choice [expr { [info exists ::logging_config__ltm_req_log_choice] && [iapp::is ::logging_config__ltm_req_log_choice yes] }]
 	set mgmt_hostname [expr { [iapp::is ::internal_config__hostname custom] ? "$::internal_config__mgmt_hostname" : {$static::tcl_platform(machine)} }]
 	set mgmt_port [expr { [iapp::is ::internal_config__port custom] ? "$::internal_config__mgmt_port" : "$dynamic_mgmt_port" }]
-	set key [iapp::substa key_arr($analytics_solution)]
-	set secret [iapp::substa secret_arr($analytics_solution)]
-	set format_vs_port [expr { [iapp::is ::basic__advanced yes] && [info exists ::internal_config__format_vs_port] ? $::internal_config__format_vs_port : "1001" }]
-	set send_vs_port [expr { [iapp::is ::basic__advanced yes] && [info exists ::internal_config__send_vs_port] ? $::internal_config__send_vs_port : "41001" }]
+	set access_key [iapp::substa access_key_arr($analytics_solution)]
+	set secret_key [iapp::substa secret_key_arr($analytics_solution)]
+	set format_vs_port [expr { [iapp::is ::basic__advanced yes] && [info exists ::internal_config__internal_vs_port] ? $::internal_config__internal_vs_port : "41001" }]
+	set send_vs_port [expr { $format_vs_port + 1 }]
+	set cred_vs_port [expr { $format_vs_port + 2 }]
 	set log_level [expr { [iapp::is ::basic__advanced yes] && [info exists ::internal_config__irule_log_level] ? "$::internal_config__irule_log_level" : "2" }]
 	set remediation_link [expr { $is_v13_0 ? {${mgmt_hostname}:${mgmt_port}/dms/policy/requests_ng.php?popup\=1&supportId\=${supportid}} : {${mgmt_hostname}:${mgmt_port}/dms/policy/win_open_proxy_request.php?id\=&support_id\=${supportid}} }]
 	# Azure OMS Variables
-	set workspace [expr { [info exists ::analytics_config__workspace] ? "$::analytics_config__workspace" : "not_required" }]
+	set workspace [expr { [info exists ::analytics_config__workspace] ? "$::analytics_config__workspace" : "none" }]
 	set log_type [expr { [info exists ::analytics_config__log_type] ? "$::analytics_config__log_type" : "F5CustomLogs" }]
 	# AWS CloudWatch Variables
-	set aws_region [expr { [info exists ::analytics_config__aws_region] ? "$::analytics_config__aws_region" : "not_required" }]
+	set aws_region [expr { [info exists ::analytics_config__aws_region] ? "$::analytics_config__aws_region" : "none" }]
 	set log_group_name [expr { [info exists ::analytics_config__log_group_name] ? "$::analytics_config__log_group_name" : "ASMLogs" }]
 	set log_stream_name [expr { [info exists ::analytics_config__log_stream_name] ? "$::analytics_config__log_stream_name" : "ASMStream01" }]
 
@@ -267,7 +308,7 @@ when HTTP_RESPONSE_DATA {
 	array set host_arr {
 		azure_oms 			{ ${workspace}.ods.opinsights.azure.${fqdn_suffix} }
 		aws_cw 				{ logs.${aws_region}.amazonaws.com }
-		* 					{ not_required }
+		* 					{ none }
 	}
 	# Keys: $analytics_solution
 	array set path_arr {
@@ -294,15 +335,16 @@ when HTTP_RESPONSE_DATA {
 	# Check if token is available before using
 	set seq_token ""
 	set t 50
-	#call logger "Seq Token Status: [table lookup seq_token_status]" 0
+	# A little too verbose even for debug
+	#call logger "Seq Token Status: [table lookup <IAPP_NAME>_seq_token_status]" 0
 	for {set i 0} { $i < $t } {incr i} {
-        if { [table lookup seq_token_status] == "busy" } {
+        if { [table lookup <IAPP_NAME>_seq_token_status] == "busy" } {
             # Keep trying after delay
             after 10
         } else {
             # Sequence token is available, grab it and break from loop
-            table set seq_token_status "busy"
-            set seq_token [table lookup seq_token]
+            table set <IAPP_NAME>_seq_token_status "busy"
+            set seq_token [table lookup <IAPP_NAME>_seq_token]
             break
         }
 	}
@@ -320,7 +362,7 @@ when HTTP_RESPONSE_DATA {
 	# Keys: $analytics_solution
 	array set auth_proc_arr {
 		azure_oms 		{set str_to_sign "POST\n[string length $final_msg]\napplication/json\nx-ms-date:$date\n/api/logs"
-	set decoded_key [b64decode $key]
+	set decoded_key [b64decode $secret_key]
 	set token [CRYPTO::sign -alg hmac-sha256 -key $decoded_key $str_to_sign]
 	set signed_string [b64encode ${token}]}
 		aws_cw 			{set date_stamp [clock format [clock seconds] -format "%Y%m%d" -gmt true]
@@ -334,12 +376,12 @@ when HTTP_RESPONSE_DATA {
 	binary scan [CRYPTO::hash -alg sha256 $request] H* request_hash
 	set str_to_sign "${algorithm}\n${date}\n${cred_scope}\n${request_hash}"
 
-	set kDate [CRYPTO::sign -alg hmac-sha256 -key AWS4${secret} $date_stamp]
+	set kDate [CRYPTO::sign -alg hmac-sha256 -key AWS4${secret_key} $date_stamp]
 	set kRegion [CRYPTO::sign -alg hmac-sha256 -key $kDate $region]
 	set kService [CRYPTO::sign -alg hmac-sha256 -key $kRegion $service]
 	set kSigning [CRYPTO::sign -alg hmac-sha256 -key $kService aws4_request]
 	binary scan [CRYPTO::sign -alg hmac-sha256 -key $kSigning $str_to_sign] H* auth_token
-	set signed_string "${algorithm} Credential=${key}/${cred_scope}, SignedHeaders=${signed_headers}, Signature=${auth_token}"}
+	set signed_string "${algorithm} Credential=${access_key}/${cred_scope}, SignedHeaders=${signed_headers}, Signature=${auth_token}"}
 		* 				{set signed_string ""}
 	}
 	# Keys: $analytics_solution
@@ -355,8 +397,8 @@ when HTTP_RESPONSE_DATA {
 	} else {
 		set seq_token ""
 	}
-	table set seq_token $seq_token indefinite
-	table set seq_token_status "free"
+	table set <IAPP_NAME>_seq_token $seq_token indefinite
+	table set <IAPP_NAME>_seq_token_status "free"
 	}
 		* 				{# Event end
 		}
@@ -376,8 +418,8 @@ when HTTP_RESPONSE_DATA {
 	   <ANALYTICS_PATH> \{$path_arr($analytics_solution)\}
 	   <ANALYTICS_POST> \{$post_arr($analytics_solution)\}
 	   <WORKSPACE> $workspace
-	   <KEY> $key
-	   <SECRET> $secret
+	   <KEY> $access_key
+	   <SECRET> $secret_key
 	   <LOG_TYPE> $log_type
 	   <LOG_LEVEL> $log_level
 	   <FMT_IRULE_NAME> ${app}_format_ir
@@ -389,6 +431,7 @@ when HTTP_RESPONSE_DATA {
 	   <LOG_GROUP_NAME> $log_group_name
 	   <LOG_STREAM_NAME> $log_stream_name
 	   <REMED_LINK> \{$remediation_link\}
+	   <IAPP_NAME> \{$app\}
 	"
 
 	set extra_map "<LOG_GROUP_NAME> $log_group_name
@@ -396,14 +439,26 @@ when HTTP_RESPONSE_DATA {
 	"
 	iapp::conf create ltm rule ${app}_format_ir \{ [string map $extra_map [string map $map $format_ir]] \}
 	iapp::conf create ltm rule ${app}_send_ir \{ [string map $extra_map [string map $map $send_ir]] \}
+	iapp::conf create ltm rule ${app}_cred_ir \{ [string map $extra_map [string map $map $cred_ir]] \}
 
-	# TCP profile with a short idle time-out to force the last event message out of the Format VS iRule buffer
+	## Create objects to handle securely getting "secret" into data-plane runtime environment
+	# Create https credential monitor
+	iapp::conf create ltm monitor https ${app}_credential_mon defaults-from https username user password [iapp::make_safe_password [string trim $secret_key]] send 'GET /credentials \\r\\n' interval 15 timeout 31
+	# Create credential client SSL profile
+	iapp::conf create ltm profile client-ssl ${app}_cred_cssl \{ defaults-from clientssl \}
+	# Create credential pool
+	iapp::conf create ltm pool ${app}_cred_pool \{ members replace-all-with \{ 255.255.255.254:${cred_vs_port} \{ address 255.255.255.254 \} \} monitor ${app}_credential_mon \}
+	# Create credential virtual server
+	iapp::conf create ltm virtual ${app}_cred_vs \{ destination 255.255.255.254:${cred_vs_port} ip-protocol tcp mask 255.255.255.255 profiles replace-all-with \{ http \{\} oneconnect \{\} ${app}_cred_cssl \{ context clientside \} tcp \{ \} \} source 0.0.0.0/0 rules \{ ${app}_cred_ir \} \}
+
+	# TCP profile (short idle time-out to force the last event message out of the Format VS iRule buffer)
 	iapp::conf create ltm profile tcp ${app}_logging_tcp \{ defaults-from tcp idle-timeout 15 \}
-	# Create Server SSL profile for Send VS
+	# Create server SSL profile for Send VS
 	iapp::conf create ltm profile server-ssl ${app}_send_sssl \{ cert ${app}_send_vs_cert.crt defaults-from serverssl-insecure-compatible key ${app}_send_vs_cert.key \}
 
-	# Point to send iRule virtual server via this pool
+	# Point to Send VS via this pool
 	iapp::conf create ltm pool ${app}_send_vs_pool \{ members replace-all-with \{ 255.255.255.254:${send_vs_port} \{ address 255.255.255.254 \} \} monitor tcp \}
+
 	# create analytics solution pool
 	# Keys: $analytics_solution
 	array set pool_arr {
@@ -413,8 +468,8 @@ when HTTP_RESPONSE_DATA {
 	}
 
 	# Create Format and Send VS
-	iapp::conf create ltm virtual ${app}_format_vs \{  destination 255.255.255.254:${format_vs_port} ip-protocol tcp mask 255.255.255.255 source 0.0.0.0/0 profiles replace-all-with \{ ${app}_logging_tcp \} rules \{${app}_format_ir \}\}
-	iapp::conf create ltm virtual ${app}_send_vs \{  destination 255.255.255.254:${send_vs_port} ip-protocol tcp mask 255.255.255.255 pool [iapp::substa pool_arr($analytics_solution)] profiles replace-all-with \{ http \{\} oneconnect \{\} ${app}_send_sssl \{ context serverside \} tcp \{ \} \} source 0.0.0.0/0 source-address-translation \{ type automap \} rules \{ ${app}_send_ir \}\}
+	iapp::conf create ltm virtual ${app}_format_vs \{ destination 255.255.255.254:${format_vs_port} ip-protocol tcp mask 255.255.255.255 source 0.0.0.0/0 profiles replace-all-with \{ ${app}_logging_tcp \} rules \{${app}_format_ir \}\}
+	iapp::conf create ltm virtual ${app}_send_vs \{ destination 255.255.255.254:${send_vs_port} ip-protocol tcp mask 255.255.255.255 pool [iapp::substa pool_arr($analytics_solution)] profiles replace-all-with \{ http \{\} oneconnect \{\} ${app}_send_sssl \{ context serverside \} tcp \{ \} \} source 0.0.0.0/0 source-address-translation \{ type automap \} rules \{ ${app}_send_ir \}\}
 
 
 	# Logging publisher(s) and pool(s) required for some log sources
@@ -675,8 +730,10 @@ section internal_config {
 			string mgmt_port display "small" validator "PortNumber" default "443" required
 		}
 		optional ( basic.advanced == "yes" ) {
-			string format_vs_port display "small" validator "PortNumber" default "1001" required
-			string send_vs_port display "small" validator "PortNumber" default "41001" required
+			string internal_vs_port display "small" validator "PortNumber" default "41001" required
+			optional ( basic.help == "show" ) {
+				message internal_vs_port_help "Input the first port to use for the internal virtual servers, the port inputted plus the next 2 ports immediately following it will be used by the solution."
+			}
 			choice irule_log_level display "xlarge" default "2" {
 				"Log debug messages" => "0"  ,
 				"Log info messages" => "1"  ,
@@ -737,8 +794,8 @@ text {
 	internal_config.mgmt_hostname "What is the mgmt FQDN or IP you would like to use?"
 	internal_config.port "Would you like to use the dynamic BIG-IP managment port?"
 	internal_config.mgmt_port "What is the mgmt port you would like to use ?"
-	internal_config.format_vs_port "What would you like the format VS port to be?"
-	internal_config.send_vs_port "What would you like the send (HTTP Post) VS port to be?"
+	internal_config.internal_vs_port "What would you like the start port to be for internal virtual servers?"
+	internal_config.internal_vs_port_help "Note:"
 	internal_config.irule_log_level "What level of internal logging would you like this solution to use (debug/info during testing)?"
 }
 		}
