@@ -544,44 +544,47 @@ section intro {
         # Here, system provisioning values are recalled, and later
         # used to customize messages displayed within the template.
         optional ( "HIDE" == "THIS" ) {
-			choice asm_provisioned tcl {
-				return [expr {[iapp::get_provisioned asm] ? "yes" : "no"}]
-			}
-			choice apm_provisioned tcl {
-				return [expr {[iapp::get_provisioned apm] ? "yes" : "no"}]
-			}
-			choice afm_provisioned tcl {
-				return [expr {[iapp::get_provisioned afm] ? "yes" : "no"}]
-			}
-			choice is_admin tcl {
-				return [expr { [iapp::get_user -is_admin] ? "yes" : "no"}]
-			}
-			choice is_v13_0 tcl {
-				return [expr {[iapp::tmos_version >= 13.0] ? "yes" : "no"}]
-			}
+            choice asm_provisioned tcl {
+                return [expr {[iapp::get_provisioned asm] ? "yes" : "no"}]
+            }
+            choice apm_provisioned tcl {
+                return [expr {[iapp::get_provisioned apm] ? "yes" : "no"}]
+            }
+            choice afm_provisioned tcl {
+                return [expr {[iapp::get_provisioned afm] ? "yes" : "no"}]
+            }
+            choice is_admin tcl {
+                return [expr { [iapp::get_user -is_admin] ? "yes" : "no"}]
+            }
+            choice is_v13_0 tcl {
+                return [expr {[iapp::tmos_version >= 13.0] ? "yes" : "no"}]
+            }
         }
-		message hello "This iApp will configure logging for BIG-IP modules to be sent to a specific set of cloud analytics solutions.  The solution will create logging profiles which can be attached to the appropriate objects (VS, APM policy, etc.) required which will result in logs being sent to the selected cloud analaytics solution. Note: Please be aware that this may (depending on level of logging required) affect performance of the BIG-IP as a result of the processing happening to construct and send the log messages over HTTP to the cloud analytics solution."
+        message hello "This iApp configures logging for BIG-IP modules to be sent to a specific set of cloud analytics solutions.  The solution creates logging profiles which can be manually attached to the appropriate objects (like virtual servers and APM policies) which results in logs being sent to the selected cloud analytics solution. Note: Be aware this may (depending on level of logging required) affect performance of the BIG-IP as a result of the processing required to construct and send the log messages over HTTP to the cloud analytics solution."
     }
 section basic {
-		choice advanced display "xxlarge" default "no" {
-			"Basic - Use F5's recommended settings" => "no"  ,
-			"Advanced - Configure advanced options" => "yes"
-		}
-		choice help display "xxlarge" default "hide" {
-			"Yes, show inline help" => "show"  ,
-			"No, do not show inline help" => "hide"
-		}
-		optional ( help == "show" ) {
-			message help_max "Inline help is available to provide contextual descriptions to aid in the completion of this configuration.  Select to show or hide the inline help in this template. Important notes and warnings are always visible, no matter which selection you make here. "
-		}
+        choice advanced display "xxlarge" default "no" {
+            "Basic - Use F5's recommended settings" => "no"  ,
+            "Advanced - Configure advanced options" => "yes"
+        }
+        choice help display "xxlarge" default "hide" {
+            "Yes, show inline help" => "show"  ,
+            "No, do not show inline help" => "hide"
+        }
+        optional ( help == "show" ) {
+            message help_max "Inline help is available to provide contextual descriptions to aid in the completion of this configuration.  Select to show or hide the inline help in this template. Important notes and warnings are always visible, no matter which selection you make here. "
+        }
 }
 section analytics_config {
-		choice analytics_solution display "xlarge" default "azure_oms" {
-			"Azure (OMS)" => "azure_oms"  ,
-			"AWS (CloudWatch)" => "aws_cw"
-		}
+        choice analytics_solution display "xlarge" default "azure_oms" {
+            "Azure (OMS)" => "azure_oms"  ,
+            "AWS (CloudWatch)" => "aws_cw"
+        }
+		optional ( basic.help == "show" ) {
+            message analytics_solution_help "Select the analytics solution you are using.  The template creates logging profiles which can be manually attached to BIG-IP configuration objects which are then sent to the analytics solution you choose here."
+        }
 		optional ( analytics_solution == "aws_cw" ) {
-			message analytics_solution_help "AWS CloudWatch is an available logging destination, however to send data to it requires a synchronous flow of events.  This means that if trying to send to the same CloudWatch Logs Stream from two different devices or if there are a large number of logs being sent in a short time frame some of them will be lost."
+			message analytics_aws_help "AWS CloudWatch is an available logging destination, however to send data to it requires a synchronous flow of events.  This means that if trying to send to the same CloudWatch Logs Stream from two different devices or if there are a large number of logs being sent in a short time frame some of them will be lost."
 		}
 		optional ( analytics_solution == "azure_oms" ) {
 			optional ( basic.advanced == "yes" ) {
@@ -593,214 +596,253 @@ section analytics_config {
 					message azure_env_help "Select which Azure environment you are deploying into."
 				}
 			}
-			string workspace display "xxlarge" required
-			optional ( basic.help == "show" ) {
-				message workspace_help "Enter the Azure OMS workspace ID."
-			}
-			password shared_key display "xxlarge" required
-			optional ( basic.help == "show" ) {
-				message shared_key_help "Enter the primary or secondary shared key for the OMS workspace."
-			}
-			string log_type display "large" default "F5CustomLog" required
-			message log_type_value_help "The log type cannot contain special characters or numeric characters."
-			optional ( basic.help == "show" ) {
-				message log_type_help "The log type inputted here is used as the log type when submitting to Azure OMS, you can then search for logs based on the log type name plus '_CL', for example: F5CustomLog_CL"
-			}
-		}
-		optional ( analytics_solution == "aws_cw" ) {
-			choice aws_region display "large" default "us-west-1" {"us-west-1", "us-west-2", "us-east-1", "us-east-2", "ca-central-1", "ap-south-1", "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1", "eu-west-2", "sa-east-1"}
-			optional ( basic.help == "show" ) {
-				message aws_region_help "Select the AWS CloudWatch region to log to."
-			}
-			string log_group_name display "xlarge" required
-			string log_stream_name display "xlarge" required
-			string access_key display "xxlarge" required
-			password secret_key display "xxlarge" required
-		}
+            string workspace display "xxlarge" required
+            optional ( basic.help == "show" ) {
+                message workspace_help "Type your Azure OMS workspace ID."
+            }
+            password shared_key display "xxlarge" required
+            optional ( basic.help == "show" ) {
+                message shared_key_help "Type the primary or secondary shared key for the OMS workspace."
+            }
+            string log_type display "large" default "F5CustomLog" required
+            message log_type_value_help "The log type cannot contain special or numeric characters."
+            optional ( basic.help == "show" ) {
+                message log_type_help "The log type you enter here is used as the log type when submitting to Azure OMS. You can then search for logs based on the log type name plus '_CL', for example: F5CustomLog_CL."
+            }
+        }
+        optional ( analytics_solution == "aws_cw" ) {
+            choice aws_region display "large" default "us-west-1" {"us-west-1", "us-west-2", "us-east-1", "us-east-2", "ca-central-1", "ap-south-1", "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1", "eu-west-2", "sa-east-1"}
+            optional ( basic.help == "show" ) {
+                message aws_region_help "Select the AWS CloudWatch region to which you want to log."
+            }
+            string log_group_name display "xlarge" required
+            optional ( basic.help == "show" ) {
+                message log_group_name_help "Type the group name for your AWS CloudWatch Logs."
+            }
+            string log_stream_name display "xlarge" required
+            optional ( basic.help == "show" ) {
+                message log_stream_name_help "Type the group stream name for your AWS Cloud Watch Logs."
+            }
+            string access_key display "xxlarge" required
+            optional ( basic.help == "show" ) {
+                message access_key_help "Type the access key to use for the API calls."
+            }
+            password secret_key display "xxlarge" required
+            optional ( basic.help == "show" ) {
+                message secret_key_help "Type the secret key to use for the API calls."
+            }
+        }
 }
 section logging_config {
-		optional ( intro.asm_provisioned == "yes" ) {
-			choice asm_log_choice display "xlarge" default "yes" {
-				"Enable ASM logging" => "yes"  ,
-				"Don't enable ASM logging" => "no"
-			}
-			optional ( basic.help == "show" ) {
-				message asm_log_choice_help "Select whether you would like to enable ASM logging, you will need to attach the Security log profile created by this iApp to the virtual servers required (Security Tab)."
-			}
-			optional ( asm_log_choice == "yes" ) {
-				choice asm_log_level display "xlarge" default "log_illegal" {
-					"Log illegal requests only (recommended)" => "log_illegal",
-					"Log illegal requests and staged signatures" => "log_illegal_plus_staged",
-					"Log all requests (verbose)" => "log_all"
-				}
-				optional ( basic.help == "show" ) {
-					message asm_log_level_help "Select what level of ASM logging you prefer, logging illegal requests only will result in the least number of log messages."
-				}
-				choice dos_logs display "xlarge" default "yes" {
-					"Include DOS protection logging" => "yes",
-					"Don't include DOS protection logging" => "no"
-				}
-				optional ( basic.help == "show" ) {
-					message dos_logs_help "Select whether you would like to include DOS logging within the ASM logging profile."
-				}
-			}
-		}
-		optional ( intro.apm_provisioned == "yes" ) {
-			choice apm_log_choice display "xlarge" default "yes" {
-				"Enable APM logging" => "yes"  ,
-				"Don't enable APM logging" => "no"
-			}
-			optional ( basic.help == "show" ) {
-				message apm_log_choice_help "Select whether you would like to enable APM logging, you will need to attach the APM log profile created by this iApp to the required APM policies."
-			}
-			optional ( apm_log_choice == "yes" ) {
-				choice apm_log_level display "xlarge" default "crit" {
-					"Emergency" => "emerg",
-					"Alert" => "alert",
-					"Critical" => "crit",
-					"Error" => "err",
-					"Warning" => "warn",
-					"Notice" => "notice",
-					"Informational" => "info",
-					"Debug" => "debug"
-				}
-				optional ( basic.help == "show" ) {
-					message apm_log_level_help "Select what level of APM logging you prefer, this will be applied to all policy options in the APM logging profile.  Note: Choosing a higher criticality level will result in fewer log messages."
-				}
-			}
-		}
-		optional ( intro.afm_provisioned == "yes" ) {
-			choice afm_log_choice display "xlarge" default "yes" {
-				"Enable AFM logging" => "yes"  ,
-				"Don't enable AFM logging" => "no"
-			}
-			optional ( basic.help == "show" ) {
-				message afm_log_choice_help "Select whether you would like to enable AFM logging, you will need to attach the Security log profile created by this iApp to the virtual servers required (Security Tab)."
-			}
-			optional ( afm_log_choice == "yes" ) {
-				multichoice afm_log_level display "xlarge" default { "match_drop", "match_reject" } {
-					"Dropped Connections" => "match_drop",
-					"Rejected Connections" => "match_reject",
-					"Accepted Connections" => "match_accept"
-				}
-				optional ( basic.help == "show" ) {
-					message afm_log_level_help "Select what level of AFM logging you prefer, logging dropped and rejected requests only is recommended and will result in the least number of log messages."
-				}
-			}
-		}
-		choice ltm_req_log_choice display "xlarge" default "no" {
-			"Enable LTM request logging" => "yes"  ,
-			"Don't enable LTM request logging" => "no"
-		}
-		optional ( basic.help == "show" ) {
-			message ltm_req_log_choice_help "Select whether you would like to enable LTM request logging, you will need to attach the LTM request log profile created by this iApp to the virtual servers desired."
-		}
-		optional ( ltm_req_log_choice == "yes" ) {
-			multichoice ltm_req_log_options display "xlarge" default { "CLIENT_IP", "SERVER_IP", "HTTP_METHOD", "HTTP_URI", "VIRTUAL_NAME" } {
-				"CLIENT_IP" => "CLIENT_IP",
-				"CLIENT_PORT" => "CLIENT_PORT",
-				"SERVER_IP" => "SERVER_IP",
-				"HTTP_METHOD" => "HTTP_METHOD",
-				"HTTP_URI" => "HTTP_URI",
-				"HTTP_QUERY" => "HTTP_QUERY",
-				"HTTP_VERSION" => "HTTP_VERSION",
-				"VIRTUAL_IP" => "VIRTUAL_IP",
-				"VIRTUAL_PORT" => "VIRTUAL_PORT",
-				"VIRTUAL_NAME" => "VIRTUAL_NAME",
-				"VIRTUAL_POOL_NAME" => "VIRTUAL_POOL_NAME"
-			}
-			optional ( basic.help == "show" ) {
-				message ltm_req_log_options_help "Select which request parameters to send in the log message. The complete list and descriptions can be found here: https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/bigip-external-monitoring-implementations-12-0-0/3.html"
-			}
-		}
+        optional ( intro.asm_provisioned == "yes" ) {
+            choice asm_log_choice display "xlarge" default "yes" {
+                "Enable ASM logging" => "yes"  ,
+                "Do not enable ASM logging" => "no"
+            }
+            optional ( basic.help == "show" ) {
+                message asm_log_choice_help "Select whether you want to enable logging for the BIG-IP ASM (Application Security Manager) module. After deploying this template, you must attach the Security log profile created by this iApp to the applicable BIG-IP virtual servers (on the Security Tab)."
+            }
+            optional ( asm_log_choice == "yes" ) {
+                choice asm_log_level display "xlarge" default "log_illegal" {
+                    "Log illegal requests only (recommended)" => "log_illegal",
+                    "Log illegal requests and staged signatures" => "log_illegal_plus_staged",
+                    "Log all requests (verbose)" => "log_all"
+                }
+                optional ( basic.help == "show" ) {
+                    message asm_log_level_help "Select the level of ASM logging you want to use. Note that logging illegal requests only results in the least number of log messages."
+                }
+                choice dos_logs display "xlarge" default "yes" {
+                    "Include DOS protection logging" => "yes",
+                    "Do not include DOS protection logging" => "no"
+                }
+                optional ( basic.help == "show" ) {
+                    message dos_logs_help "Select whether you want to include DOS logging within the ASM logging profile."
+                }
+            }
+        }
+        optional ( intro.apm_provisioned == "yes" ) {
+            choice apm_log_choice display "xlarge" default "yes" {
+                "Enable APM logging" => "yes"  ,
+                "Do not enable APM logging" => "no"
+            }
+            optional ( basic.help == "show" ) {
+                message apm_log_choice_help "Select whether you want to enable logging for the BIG-IP APM (Application Policy Manager) module.  After deploying this template, you must attach the APM log profile created by this iApp to the applicable BIG-IP APM policies."
+            }
+            optional ( apm_log_choice == "yes" ) {
+                choice apm_log_level display "xlarge" default "crit" {
+                    "Emergency" => "emerg",
+                    "Alert" => "alert",
+                    "Critical" => "crit",
+                    "Error" => "err",
+                    "Warning" => "warn",
+                    "Notice" => "notice",
+                    "Informational" => "info",
+                    "Debug" => "debug"
+                }
+                optional ( basic.help == "show" ) {
+                    message apm_log_level_help "Select the level of APM logging you want to use. This log level is applied to all policy options in the APM logging profile.  Note: Choosing a higher criticality level results in fewer log messages."
+                }
+            }
+        }
+        optional ( intro.afm_provisioned == "yes" ) {
+            choice afm_log_choice display "xlarge" default "yes" {
+                "Enable AFM logging" => "yes"  ,
+                "Do not enable AFM logging" => "no"
+            }
+            optional ( basic.help == "show" ) {
+                message afm_log_choice_help "Select whether you want to enable logging for the BIG-IP AFM (Application Firewall Manager) module. After deploying this template, you must attach the Security log profile created by this iApp to the applicable BIG-IP virtual servers (on the Security Tab)."
+            }
+            optional ( afm_log_choice == "yes" ) {
+                multichoice afm_log_level display "xlarge" default { "match_drop", "match_reject" } {
+                    "Dropped Connections" => "match_drop",
+                    "Rejected Connections" => "match_reject",
+                    "Accepted Connections" => "match_accept"
+                }
+                optional ( basic.help == "show" ) {
+                    message afm_log_level_help "Select the level of AFM logging you want to use. We recommend logging dropped and rejected requests only, which results in the least number of log messages."
+                }
+            }
+        }
+        choice ltm_req_log_choice display "xlarge" default "no" {
+            "Enable LTM request logging" => "yes"  ,
+            "Do not enable LTM request logging" => "no"
+        }
+        optional ( basic.help == "show" ) {
+            message ltm_req_log_choice_help "Select whether you want to enable BIG-IP LTM (Local Traffic Manager) request logging. After deploying this template, you must attach the LTM request log profile created by this iApp to the applicable BIG-IP virtual servers."
+        }
+        optional ( ltm_req_log_choice == "yes" ) {
+            multichoice ltm_req_log_options display "xlarge" default { "CLIENT_IP", "SERVER_IP", "HTTP_METHOD", "HTTP_URI", "VIRTUAL_NAME" } {
+                "CLIENT_IP" => "CLIENT_IP",
+                "CLIENT_PORT" => "CLIENT_PORT",
+                "SERVER_IP" => "SERVER_IP",
+                "HTTP_METHOD" => "HTTP_METHOD",
+                "HTTP_URI" => "HTTP_URI",
+                "HTTP_QUERY" => "HTTP_QUERY",
+                "HTTP_VERSION" => "HTTP_VERSION",
+                "VIRTUAL_IP" => "VIRTUAL_IP",
+                "VIRTUAL_PORT" => "VIRTUAL_PORT",
+                "VIRTUAL_NAME" => "VIRTUAL_NAME",
+                "VIRTUAL_POOL_NAME" => "VIRTUAL_POOL_NAME"
+            }
+            optional ( basic.help == "show" ) {
+                message ltm_req_log_options_help "Select which request parameters to send in the log message. The complete list and descriptions can be found at: https://support.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/bigip-external-monitoring-implementations-12-0-0/3.html."
+            }
+        }
 }
 section internal_config {
-		choice hostname display "xxlarge" default "yes" {
-			"Use dynamic BIG-IP management hostname" => "yes"  ,
-			"Use custom BIG-IP management hostname" => "custom"
-		}
-		optional ( hostname == "custom" ) {
-			string mgmt_hostname display "xxlarge" default "bigip.f5.com" required
-		}
-		choice port display "xxlarge" default "yes" {
-			"Use dynamic BIG-IP management port" => "yes"  ,
-			"Use custom BIG-IP management port" => "custom"
-		}
-		optional ( port == "custom" ) {
-			string mgmt_port display "small" validator "PortNumber" default "443" required
-		}
-		optional ( basic.advanced == "yes" ) {
+        choice hostname display "xxlarge" default "yes" {
+            "Use this BIG-IP's management hostname" => "yes"  ,
+            "Use a custom BIG-IP management hostname" => "custom"
+        }
+        optional ( basic.help == "show" ) {
+            message hostname_help "Select whether you want the iApp to use the management hostname configured on this BIG-IP system in items such as the ASM remediation link included with the ASM logs, or if you want to specify a custom management hostname.  We recommend using the BIG-IP hostname, unless the management hostname within a URL will not resolve correctly in DNS.  The custom hostname field allows you to enter a specific hostname that is different from the actual hostname on the BIG-IP system. "
+        }
+        optional ( hostname == "custom" ) {
+            string mgmt_hostname display "xxlarge" default "bigip.f5.com" required
+            optional ( basic.help == "show" ) {
+                message mgmt_hostname_help "Type custom management hostname you want to use. "
+            }
+        }
+        
+        choice port display "xxlarge" default "yes" {
+            "Use this BIG-IP's management port" => "yes"  ,
+            "Use a custom BIG-IP management port" => "custom"
+        }
+        optional ( basic.help == "show" ) {
+            message port_help "Select whether you want the iApp to use the management port configured on this BIG-IP system in items such as the ASM remediation link included with the ASM logs, or if you want to specify a custom management port."
+        }
+        optional ( port == "custom" ) {
+            string mgmt_port display "small" validator "PortNumber" default "443" required
+            optional ( basic.help == "show" ) {
+                message mgmt_port_help "Type the custom management port you want to use."
+            }
+        }
+        
+        optional ( basic.advanced == "yes" ) {
 			string internal_vs_port display "small" validator "PortNumber" default "41001" required
 			optional ( basic.help == "show" ) {
-				message internal_vs_port_help "Input the first port to use for the internal virtual servers, the port inputted plus the next 2 ports immediately following it will be used by the solution."
+				message internal_vs_port_help "Type first port to use for the internal virtual servers. The port you enter, plus the next 2 ports immediately following it are used by the solution."
 			}
-			choice irule_log_level display "xlarge" default "2" {
-				"Log debug messages" => "0"  ,
-				"Log info messages" => "1"  ,
-				"Log only errors" => "2"
-			}
-		}
+            choice irule_log_level display "xlarge" default "2" {
+                "Log debug messages" => "0"  ,
+                "Log info messages" => "1"  ,
+                "Log only errors" => "2"
+            }
+            optional ( basic.help == "show" ) {
+                message irule_log_level_help "The solution has internal logging built-in to help troubleshooting during initial setup as well as during operational use. The higher the logging level, fewer messages are sent to /var/log/ltm."
+            }
+        }
 }
 text {
-	intro "F5 cloud logging and analytics solution"
-	intro.hello "Introduction"
+    intro "F5 cloud logging and analytics solution"
+    intro.hello "Introduction"
 
-	basic "Template Options"
-	basic.advanced "Which configuration mode do you want to use?"
-	basic.help "Do you want to see inline help?"
-	basic.help_max "Help"
+    basic "Template Options"
+    basic.advanced "Which configuration mode do you want to use?"
+    basic.help "Do you want to see inline help?"
+    basic.help_max "Help"
 
-	analytics_config "Analytics Provider"
-	analytics_config.analytics_solution "Which analytics solution are you using?"
-	analytics_config.analytics_solution_help "Important Note: "
-	analytics_config.azure_env "Which Azure environment are you deploying into?"
-	analytics_config.azure_env_help "Note:"
+    analytics_config "Analytics Provider"
+    analytics_config.analytics_solution "Which analytics solution are you using?"
+    analytics_config.analytics_solution_help ""
+	analytics_config.analytics_aws_help ""
+    analytics_config.azure_env "Which Azure environment are you deploying into?"
+	analytics_config.azure_env_help ""
 	analytics_config.workspace "What is the Azure OMS workspace ID?"
-	analytics_config.workspace_help "Note:"
-	analytics_config.shared_key "What is the shared access key (primary or secondary) for the Azure OMS workspace?"
-	analytics_config.shared_key_help "Note:"
-	analytics_config.log_type "What would you like the log type to be called?"
-	analytics_config.log_type_value_help "Note:"
-	analytics_config.log_type_help "Note:"
-	analytics_config.aws_region "Which AWS region of the CloudWatch Logs provider would you like to send logs?"
-	analytics_config.aws_region_help "Note:"
-	analytics_config.log_group_name "What is the AWS CloudWatch Logs group name?"
-	analytics_config.log_stream_name "What is the AWS CloudWatch Logs group's stream name?"
-	analytics_config.access_key "What is the access key you would like to use for the API calls?"
-	analytics_config.secret_key "What is the secret key you would like to use for the API calls?"
+    analytics_config.workspace_help ""
+    analytics_config.shared_key "What is the shared access key (primary or secondary) for the Azure OMS workspace?"
+    analytics_config.shared_key_help ""
+    analytics_config.log_type "What would you like the log type to be called?"
+    analytics_config.log_type_value_help ""
+    analytics_config.log_type_help ""
+    analytics_config.aws_region "Which AWS region of the CloudWatch Logs provider would you like to send logs?"
+    analytics_config.aws_region_help ""
+    analytics_config.log_group_name "What is the AWS CloudWatch Logs group name?"
+    analytics_config.log_group_name_help ""
+    analytics_config.log_stream_name "What is the AWS CloudWatch Logs group's stream name?"
+    analytics_config.log_stream_name_help ""
+    analytics_config.access_key "What is the access key you want to use for the API calls?"
+    analytics_config.access_key_help ""
+    analytics_config.secret_key "What is the secret key you want to use for the API calls?"
+    analytics_config.secret_key_help ""
 
-	logging_config "Log Selection"
-	logging_config.asm_log_choice "Would you like to enable ASM logging?"
-	logging_config.asm_log_choice_help "Note:"
-	logging_config.asm_log_level "What ASM requests would you like to log?"
-	logging_config.asm_log_level_help "Note:"
-	logging_config.dos_logs "Would you like to include ASM DOS logging?"
-	logging_config.dos_logs_help "Note:"
-	logging_config.apm_log_choice "Would you like to enable APM logging?"
-	logging_config.apm_log_choice_help "Note:"
-	logging_config.apm_log_level "What level of APM logging do you prefer?"
-	logging_config.apm_log_level_help "Note:"
-	logging_config.afm_log_choice "Would you like to enable AFM logging?"
-	logging_config.afm_log_choice_help "Note:"
-	logging_config.afm_log_level "What AFM requests would you like to log?"
-	logging_config.afm_log_level_help "Note:"
-	logging_config.ltm_req_log_choice "Would you like to enable LTM Request logging?"
-	logging_config.ltm_req_log_choice_help "Note:"
-	logging_config.ltm_req_log_options "What Request parameters would you like to send in the log?"
-	logging_config.ltm_req_log_options_help "Note:"
+    logging_config "Log Selection"
+    logging_config.asm_log_choice "Do you want to enable ASM logging?"
+    logging_config.asm_log_choice_help ""
+    logging_config.asm_log_level "What ASM requests do you want to log?"
+    logging_config.asm_log_level_help ""
+    logging_config.dos_logs "Do you want to include ASM DOS logging?"
+    logging_config.dos_logs_help ""
+    logging_config.apm_log_choice "Do you want to enable APM logging?"
+    logging_config.apm_log_choice_help ""
+    logging_config.apm_log_level "What level of APM logging do you want to use?"
+    logging_config.apm_log_level_help ""
+    logging_config.afm_log_choice "Do you want to enable AFM logging?"
+    logging_config.afm_log_choice_help ""
+    logging_config.afm_log_level "What AFM requests do you want to log?"
+    logging_config.afm_log_level_help ""
+    logging_config.ltm_req_log_choice "Do you want to enable LTM Request logging?"
+    logging_config.ltm_req_log_choice_help ""
+    logging_config.ltm_req_log_options "What Request parameters do you want to send in the log?"
+    logging_config.ltm_req_log_options_help ""
 
-	internal_config "Solution Configuration"
-	internal_config.hostname "Would you like to use the dynamic BIG-IP managment hostname?"
-	internal_config.mgmt_hostname "What is the mgmt FQDN or IP you would like to use?"
-	internal_config.port "Would you like to use the dynamic BIG-IP managment port?"
-	internal_config.mgmt_port "What is the mgmt port you would like to use ?"
-	internal_config.internal_vs_port "What would you like the start port to be for internal virtual servers?"
-	internal_config.internal_vs_port_help "Note:"
-	internal_config.irule_log_level "What level of internal logging would you like this solution to use (debug/info during testing)?"
+    internal_config "Solution Configuration"
+    internal_config.hostname "Use this BIG-IP system's management hostname or a custom hostname?"
+    internal_config.hostname_help ""
+    internal_config.mgmt_hostname "What is the mgmt FQDN or IP you want to use?"
+    internal_config.mgmt_hostname_help ""
+    internal_config.port "Use this BIG-IP system's management port or a custom port?"
+    internal_config.port_help ""
+    internal_config.mgmt_port "What is the mgmt port you want to use?"
+    internal_config.mgmt_port_help ""
+    internal_config.internal_vs_port "What should be the start port for internal virtual servers?"
+	internal_config.internal_vs_port_help ""
+    internal_config.irule_log_level "What level of internal logging do you want this solution to use (for debug/info during testing)?"
+     internal_config.irule_log_level_help ""
 }
-		}
-		role-acl { admin manager resource-admin }
-		run-as none
+        }
+        role-acl { admin manager resource-admin }
+        run-as none
         }
     }
     description none
@@ -812,3 +854,4 @@ text {
     tmpl-checksum none
     tmpl-signature none
 }
+
