@@ -178,6 +178,7 @@ when CLIENT_DATA {
 
 		  set final_msg [call format_msg $rawmsg]
 		  set date <DATE_CMD>
+		  <EXTRA_CMDS>
 		  # Handle Auth Token
 		  set auth_token [call configure_auth $final_msg $ctx(access_key) $ctx(secret_key) $date $ctx(host) $ctx(region)]
 		  # Compile full HTTP Post
@@ -198,10 +199,11 @@ when CLIENT_CLOSED {
 	set hslpool [HSL::open -proto TCP -pool "<HSL_POOL>"]
 
 	set final_msg [call format_msg $buf]
+	set date <DATE_CMD>
+	<EXTRA_CMDS>
 	# Handle Auth
 	set auth_token [call configure_auth $final_msg $ctx(access_key) $ctx(secret_key) $date $ctx(host) $ctx(region)]
 	# Compile full HTTP Post
-	set date [clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT" -gmt true]
 	set fullPOST "<ANALYTICS_POST>"
 
 	call logger "Full HTTP Post: $fullPOST" 0
@@ -221,10 +223,16 @@ when HTTP_REQUEST {
 }
 when HTTP_RESPONSE {
     set status [HTTP::status]
-    set content_length [HTTP::header Content-Length]
+    set content_length 0
+    if {[HTTP::header "Content-Length"] ne "" && [HTTP::header "Content-Length"] <= 1048576}{
+      set content_length [HTTP::header "Content-Length"]
+    } elseif { $status != "200" } {
+        set content_length 1048576
+    }
 	if { $content_length > 0 }{
 		HTTP::collect $content_length
 	}
+
     call <FMT_IRULE_NAME>::logger "Response: $status" 1
     foreach header [HTTP::header names] {
 	  call <FMT_IRULE_NAME>::logger "Header $header: [HTTP::header value $header]" 0
@@ -267,11 +275,13 @@ when HTTP_REQUEST {
 	array set access_key_arr {
 		azure_oms { none }
 		aws_cw { $::analytics_config__access_key }
+		aws_s3 { $::analytics_config__access_key }
 		* { none }
 	}
 	array set secret_key_arr {
 		azure_oms { $::analytics_config__shared_key }
 		aws_cw { $::analytics_config__secret_key }
+		aws_s3 { $::analytics_config__secret_key }
 		* { none }
 	}
 
@@ -299,6 +309,7 @@ when HTTP_REQUEST {
 	set aws_region [expr { [info exists ::analytics_config__aws_region] ? "$::analytics_config__aws_region" : "none" }]
 	set log_group_name [expr { [info exists ::analytics_config__log_group_name] ? "$::analytics_config__log_group_name" : "ASMLogs" }]
 	set log_stream_name [expr { [info exists ::analytics_config__log_stream_name] ? "$::analytics_config__log_stream_name" : "ASMStream01" }]
+	set s3_bucket_name [expr { [info exists ::analytics_config__s3_bucket_name] ? "$::analytics_config__s3_bucket_name" : "S3Bucket" }]
 
 	# create SSL cert for logging virtual server SSL
 	catch { tmsh_exe "create sys crypto key ${app}_send_vs_cert gen-certificate common-name Cloud_Analytics_Logging country US lifetime 3650" }
@@ -308,18 +319,21 @@ when HTTP_REQUEST {
 	array set host_arr {
 		azure_oms 			{ ${workspace}.ods.opinsights.azure.${fqdn_suffix} }
 		aws_cw 				{ logs.${aws_region}.amazonaws.com }
+		aws_s3 				{ ${s3_bucket_name}.s3.amazonaws.com }
 		* 					{ none }
 	}
 	# Keys: $analytics_solution
 	array set path_arr {
 		azure_oms 			{/api/logs?api-version=2016-04-01}
 		aws_cw 				{/}
+		aws_s3 				{/}
 		* 					{/}
 	}
 	# Keys: $analytics_solution
 	array set post_arr {
 		azure_oms 			{POST ${ctx(full_path)} HTTP/1.1\nHost: ${ctx(host)}\nContent-Length: [string length $final_msg]\nContent-Type: application/json\nx-ms-date: $date\nLog-Type: ${ctx(log_type)}\nAuthorization: SharedKey ${ctx(customer_id)}:$auth_token\n\n${final_msg}}
-		aws_cw 				{POST ${ctx(full_path)} HTTP/1.1\nHost: ${ctx(host)}\nConnection: keep-alive\nAccept-Encoding: gzip, deflate\nContent-Type: application/x-amz-json-1.1\nAuthorization: ${auth_token}\nX-Amz-Date: $date\nX-Amz-Target: Logs_20140328.PutLogEvents\nContent-Length: [string length $final_msg]\n\n${final_msg}}
+		aws_cw 				{POST ${ctx(full_path)} HTTP/1.1\nHost: ${ctx(host)}\nContent-Type: application/x-amz-json-1.1\nAuthorization: ${auth_token}\nX-Amz-Date: ${date}\nX-Amz-Target: Logs_20140328.PutLogEvents\nContent-Length: [string length $final_msg]\nConnection: keep-alive\n\n${final_msg}}
+		aws_s3 				{PUT /${date}.log HTTP/1.1\nHost: ${ctx(host)}\nContent-Type: plain/text\nx-amz-content-sha256: ${payload_hash}\nAuthorization: ${auth_token}\nX-Amz-Date: ${date}\nx-amz-meta-author: BIG-IP\nContent-Length: [string length $final_msg]\nConnection: keep-alive\n\n${final_msg}}
 		* 					{POST /}
 	}
 	# Keys: $analytics_solution
@@ -354,6 +368,8 @@ when HTTP_REQUEST {
 		set seq_token \"$seq_token\"
 	}
 	set final_msg "\{\"sequenceToken\":${seq_token},\"logGroupName\":\"${log_group_name}\",\"logStreamName\":\"${log_stream_name}\",\"logEvents\":\[\{\"timestamp\":${epoch_date},\"message\":\"${final_msg}\"\}\]\}"}
+		aws_s3 			{# Return final_msg
+		}
 		azure_oms 		{# Return final_msg
 		}
 		* 				{# Return final_msg
@@ -364,11 +380,12 @@ when HTTP_REQUEST {
 		azure_oms 		{set str_to_sign "POST\n[string length $final_msg]\napplication/json\nx-ms-date:$date\n/api/logs"
 	set decoded_key [b64decode $secret_key]
 	set token [CRYPTO::sign -alg hmac-sha256 -key $decoded_key $str_to_sign]
-	set signed_string [b64encode ${token}]}
+	set signed_string [b64encode ${token}]
+	}
 		aws_cw 			{set date_stamp [clock format [clock seconds] -format "%Y%m%d" -gmt true]
+	binary scan [CRYPTO::hash -alg sha256 $final_msg] H* payload_hash
 	set signed_headers "content-type;host;x-amz-date;x-amz-target"
 	set req_headers "content-type:application/x-amz-json-1.1\nhost:${host}\nx-amz-date:${date}\nx-amz-target:Logs_20140328.PutLogEvents\n"
-	binary scan [CRYPTO::hash -alg sha256 $final_msg] H* payload_hash
 	set request "POST\n/\n\n${req_headers}\n${signed_headers}\n${payload_hash}"
 	set algorithm "AWS4-HMAC-SHA256"
 	set service "logs"
@@ -381,7 +398,26 @@ when HTTP_REQUEST {
 	set kService [CRYPTO::sign -alg hmac-sha256 -key $kRegion $service]
 	set kSigning [CRYPTO::sign -alg hmac-sha256 -key $kService aws4_request]
 	binary scan [CRYPTO::sign -alg hmac-sha256 -key $kSigning $str_to_sign] H* auth_token
-	set signed_string "${algorithm} Credential=${access_key}/${cred_scope}, SignedHeaders=${signed_headers}, Signature=${auth_token}"}
+	set signed_string "${algorithm} Credential=${access_key}/${cred_scope}, SignedHeaders=${signed_headers}, Signature=${auth_token}"
+	}
+		aws_s3 			{set date_stamp [clock format [clock seconds] -format "%Y%m%d" -gmt true]
+	binary scan [CRYPTO::hash -alg sha256 $final_msg] H* payload_hash
+	set signed_headers "content-type;host;x-amz-content-sha256;x-amz-date;x-amz-meta-author"
+	set req_headers "content-type:plain/text\nhost:${host}\nx-amz-content-sha256:${payload_hash}\nx-amz-date:${date}\nx-amz-meta-author:BIG-IP\n"
+	set request "PUT\n/${date}.log\n\n${req_headers}\n${signed_headers}\n${payload_hash}"
+	set algorithm "AWS4-HMAC-SHA256"
+	set service "s3"
+	set cred_scope "${date_stamp}/${region}/${service}/aws4_request"
+	binary scan [CRYPTO::hash -alg sha256 $request] H* request_hash
+	set str_to_sign "${algorithm}\n${date}\n${cred_scope}\n${request_hash}"
+
+	set kDate [CRYPTO::sign -alg hmac-sha256 -key AWS4${secret_key} $date_stamp]
+	set kRegion [CRYPTO::sign -alg hmac-sha256 -key $kDate $region]
+	set kService [CRYPTO::sign -alg hmac-sha256 -key $kRegion $service]
+	set kSigning [CRYPTO::sign -alg hmac-sha256 -key $kService aws4_request]
+	binary scan [CRYPTO::sign -alg hmac-sha256 -key $kSigning $str_to_sign] H* auth_token
+	set signed_string "${algorithm} Credential=${access_key}/${cred_scope}, SignedHeaders=${signed_headers}, Signature=${auth_token}"
+	}
 		* 				{set signed_string ""}
 	}
 	# Keys: $analytics_solution
@@ -400,6 +436,8 @@ when HTTP_REQUEST {
 	table set <IAPP_NAME>_seq_token $seq_token indefinite
 	table set <IAPP_NAME>_seq_token_status "free"
 	}
+		aws_s3 		{# Event end
+		}
 		* 				{# Event end
 		}
 	}
@@ -407,7 +445,15 @@ when HTTP_REQUEST {
 	array set date_arr {
 		azure_oms 		{[clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT" -gmt true]}
 		aws_cw 			{[clock format [clock seconds] -format "%Y%m%dT%H%M%SZ" -gmt true]}
+		aws_s3 			{[clock format [clock seconds] -format "%Y%m%dT%H%M%SZ" -gmt true]}
 		* 				{[clock format [clock seconds] -format "%a, %d %b %Y %H:%M:%S GMT" -gmt true]}
+	}
+	# Keys: $analytics_solution
+	array set extra_cmd_arr {
+		azure_oms 		{}
+		aws_cw 			{}
+		aws_s3 			{binary scan [CRYPTO::hash -alg sha256 $final_msg] H* payload_hash}
+		* 				{}
 	}
 
 	## Create iRules
@@ -425,6 +471,7 @@ when HTTP_REQUEST {
 	   <FMT_IRULE_NAME> ${app}_format_ir
 	   <EXTRA_FORMAT> \{$extra_fmt_arr($analytics_solution)\}
 	   <DATE_CMD> \{$date_arr($analytics_solution)\}
+	   <EXTRA_CMDS> \{$extra_cmd_arr($analytics_solution)\}
 	   <REGION> $aws_region
 	   <CONFIGURE_AUTH> \{$auth_proc_arr($analytics_solution)\}
 	   <TABLE_SEQ> \{$seq_table_arr($analytics_solution)\}
@@ -464,6 +511,7 @@ when HTTP_REQUEST {
 	array set pool_arr {
 		azure_oms { [iapp::conf create ltm pool ${app}_logging_offbox \{ members replace-all-with \{ [format_poolmembers [string map {" " ""} [iapp::substa host_arr($analytics_solution)]:443]] \} monitor tcp \}] }
 		aws_cw { [iapp::conf create ltm pool ${app}_logging_offbox \{ members replace-all-with \{ [format_poolmembers [string map {" " ""} [iapp::substa host_arr($analytics_solution)]:443]] \} monitor tcp \}] }
+		aws_s3 { [iapp::conf create ltm pool ${app}_logging_offbox \{ members replace-all-with \{ [format_poolmembers [string map {" " ""} [iapp::substa host_arr($analytics_solution)]:443]] \} monitor tcp \}] }
 		* {}
 	}
 
@@ -578,7 +626,8 @@ section basic {
 section analytics_config {
         choice analytics_solution display "xlarge" default "azure_oms" {
             "Azure (OMS)" => "azure_oms"  ,
-            "AWS (CloudWatch)" => "aws_cw"
+            "AWS (CloudWatch)" => "aws_cw",
+			"AWS (S3)" => "aws_s3"
         }
 		optional ( basic.help == "show" ) {
             message analytics_solution_help "Select the analytics solution you are using.  The template creates logging profiles which can be manually attached to BIG-IP configuration objects which are then sent to the analytics solution you choose here."
@@ -610,18 +659,10 @@ section analytics_config {
                 message log_type_help "The log type you enter here is used as the log type when submitting to Azure OMS. You can then search for logs based on the log type name plus '_CL', for example: F5CustomLog_CL."
             }
         }
-        optional ( analytics_solution == "aws_cw" ) {
+        optional ( analytics_solution == "aws_cw" || analytics_solution == "aws_s3" ) {
             choice aws_region display "large" default "us-west-1" {"us-west-1", "us-west-2", "us-east-1", "us-east-2", "ca-central-1", "ap-south-1", "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1", "eu-west-2", "sa-east-1"}
             optional ( basic.help == "show" ) {
                 message aws_region_help "Select the AWS CloudWatch region to which you want to log."
-            }
-            string log_group_name display "xlarge" required
-            optional ( basic.help == "show" ) {
-                message log_group_name_help "Type the group name for your AWS CloudWatch Logs."
-            }
-            string log_stream_name display "xlarge" required
-            optional ( basic.help == "show" ) {
-                message log_stream_name_help "Type the group stream name for your AWS Cloud Watch Logs."
             }
             string access_key display "xxlarge" required
             optional ( basic.help == "show" ) {
@@ -632,6 +673,22 @@ section analytics_config {
                 message secret_key_help "Type the secret key to use for the API calls."
             }
         }
+		optional ( analytics_solution == "aws_cw") {
+            string log_group_name display "xlarge" required
+            optional ( basic.help == "show" ) {
+                message log_group_name_help "Type the group name for your AWS CloudWatch Logs."
+            }
+            string log_stream_name display "xlarge" required
+            optional ( basic.help == "show" ) {
+                message log_stream_name_help "Type the group stream name for your AWS Cloud Watch Logs."
+            }
+		}
+		optional ( analytics_solution == "aws_s3") {
+            string s3_bucket_name display "xlarge" required
+            optional ( basic.help == "show" ) {
+                message s3_bucket_name_help "Type the name of the S3 bucket where the logs should be sent"
+            }
+		}
 }
 section logging_config {
         optional ( intro.asm_provisioned == "yes" ) {
@@ -799,6 +856,8 @@ text {
     analytics_config.aws_region_help ""
     analytics_config.log_group_name "What is the AWS CloudWatch Logs group name?"
     analytics_config.log_group_name_help ""
+	analytics_config.s3_bucket_name "What is the AWS S3 bucket name?"
+    analytics_config.s3_bucket_name_help ""
     analytics_config.log_stream_name "What is the AWS CloudWatch Logs group's stream name?"
     analytics_config.log_stream_name_help ""
     analytics_config.access_key "What is the access key you want to use for the API calls?"
