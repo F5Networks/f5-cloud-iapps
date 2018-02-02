@@ -224,7 +224,7 @@ when HTTP_REQUEST {
 when HTTP_RESPONSE {
     set status [HTTP::status]
     set content_length 0
-    if {[HTTP::header "Content-Length"] ne "" && [HTTP::header "Content-Length"] <= 1048576}{
+    if {[HTTP::header "Content-Length"] ne ""}{
       set content_length [HTTP::header "Content-Length"]
     } elseif { $status != "200" } {
         set content_length 1048576
@@ -662,7 +662,7 @@ section analytics_config {
         optional ( analytics_solution == "aws_cw" || analytics_solution == "aws_s3" ) {
             choice aws_region display "large" default "us-west-1" {"us-west-1", "us-west-2", "us-east-1", "us-east-2", "ca-central-1", "ap-south-1", "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2", "eu-central-1", "eu-west-1", "eu-west-2", "sa-east-1"}
             optional ( basic.help == "show" ) {
-                message aws_region_help "Select the AWS CloudWatch region to which you want to log."
+                message aws_region_help "Select the AWS region for the provider you want to log to."
             }
             string access_key display "xxlarge" required
             optional ( basic.help == "show" ) {
@@ -852,7 +852,7 @@ text {
     analytics_config.log_type "What would you like the log type to be called?"
     analytics_config.log_type_value_help ""
     analytics_config.log_type_help ""
-    analytics_config.aws_region "Which AWS region of the CloudWatch Logs provider would you like to send logs?"
+    analytics_config.aws_region "Which AWS region is the provider located in?"
     analytics_config.aws_region_help ""
     analytics_config.log_group_name "What is the AWS CloudWatch Logs group name?"
     analytics_config.log_group_name_help ""
