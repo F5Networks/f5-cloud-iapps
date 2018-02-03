@@ -78,7 +78,7 @@ proc format_msg msg {
 	<EXTRA_FORMAT>
 	return $final_msg
 }
-proc configure_auth {final_msg access_key secret_key date host region} {
+proc configure_auth {final_msg access_key secret_key date host region full_uri} {
 	# Handle Creation of Authentication Token
 	<CONFIGURE_AUTH>
 	return $signed_string
@@ -145,8 +145,7 @@ when CLIENT_ACCEPTED {
 	# Construct full path to API endpoint
 	set ctx(customer_id) "<WORKSPACE>"
 	set ctx(host) "<ANALYTICS_HOSTNAME>"
-	set ctx(full_path) "<ANALYTICS_PATH>"
-	# Need to put this somewhere less visible
+	# "Secret" pulled in by proc
 	set ctx(access_key) "<KEY>"
 	set ctx(secret_key) [call get_secret_key]
 	set ctx(region) "<REGION>"
@@ -179,8 +178,9 @@ when CLIENT_DATA {
 		  set final_msg [call format_msg $rawmsg]
 		  set date <DATE_CMD>
 		  <EXTRA_CMDS>
+		  set full_uri "<ANALYTICS_PATH>"
 		  # Handle Auth Token
-		  set auth_token [call configure_auth $final_msg $ctx(access_key) $ctx(secret_key) $date $ctx(host) $ctx(region)]
+		  set auth_token [call configure_auth $final_msg $ctx(access_key) $ctx(secret_key) $date $ctx(host) $ctx(region) $full_uri]
 		  # Compile full HTTP Post
           set fullPOST "<ANALYTICS_POST>"
 
@@ -201,8 +201,9 @@ when CLIENT_CLOSED {
 	set final_msg [call format_msg $buf]
 	set date <DATE_CMD>
 	<EXTRA_CMDS>
+	set full_uri "<ANALYTICS_PATH>"
 	# Handle Auth
-	set auth_token [call configure_auth $final_msg $ctx(access_key) $ctx(secret_key) $date $ctx(host) $ctx(region)]
+	set auth_token [call configure_auth $final_msg $ctx(access_key) $ctx(secret_key) $date $ctx(host) $ctx(region) $full_uri]
 	# Compile full HTTP Post
 	set fullPOST "<ANALYTICS_POST>"
 
@@ -326,14 +327,14 @@ when HTTP_REQUEST {
 	array set path_arr {
 		azure_oms 			{/api/logs?api-version=2016-04-01}
 		aws_cw 				{/}
-		aws_s3 				{/}
+		aws_s3 				{/${day_date}/${date}.log}
 		* 					{/}
 	}
 	# Keys: $analytics_solution
 	array set post_arr {
-		azure_oms 			{POST ${ctx(full_path)} HTTP/1.1\nHost: ${ctx(host)}\nContent-Type: application/json\nAuthorization: SharedKey ${ctx(customer_id)}:$auth_token\nContent-Length: [string length $final_msg]\nx-ms-date: $date\nLog-Type: ${ctx(log_type)}\n\n${final_msg}}
-		aws_cw 				{POST ${ctx(full_path)} HTTP/1.1\nHost: ${ctx(host)}\nContent-Type: application/x-amz-json-1.1\nAuthorization: ${auth_token}\nX-Amz-Date: ${date}\nX-Amz-Target: Logs_20140328.PutLogEvents\nContent-Length: [string length $final_msg]\n\n${final_msg}}
-		aws_s3 				{PUT /${date}.log HTTP/1.1\nHost: ${ctx(host)}\nContent-Type: application/json\nx-amz-content-sha256: ${payload_hash}\nAuthorization: ${auth_token}\nX-Amz-Date: ${date}\nx-amz-meta-author: BIG-IP\nContent-Length: [string length $final_msg]\n\n${final_msg}}
+		azure_oms 			{POST ${full_uri} HTTP/1.1\nHost: ${ctx(host)}\nContent-Type: application/json\nAuthorization: SharedKey ${ctx(customer_id)}:$auth_token\nContent-Length: [string length $final_msg]\nx-ms-date: $date\nLog-Type: ${ctx(log_type)}\n\n${final_msg}}
+		aws_cw 				{POST ${full_uri} HTTP/1.1\nHost: ${ctx(host)}\nContent-Type: application/x-amz-json-1.1\nAuthorization: ${auth_token}\nX-Amz-Date: ${date}\nX-Amz-Target: Logs_20140328.PutLogEvents\nContent-Length: [string length $final_msg]\n\n${final_msg}}
+		aws_s3 				{PUT ${full_uri} HTTP/1.1\nHost: ${ctx(host)}\nContent-Type: application/json\nx-amz-content-sha256: ${payload_hash}\nAuthorization: ${auth_token}\nX-Amz-Date: ${date}\nx-amz-meta-author: BIG-IP\nContent-Length: [string length $final_msg]\n\n${final_msg}}
 		* 					{POST /}
 	}
 	# Keys: $analytics_solution
@@ -386,7 +387,7 @@ when HTTP_REQUEST {
 	binary scan [CRYPTO::hash -alg sha256 $final_msg] H* payload_hash
 	set signed_headers "content-type;host;x-amz-date;x-amz-target"
 	set req_headers "content-type:application/x-amz-json-1.1\nhost:${host}\nx-amz-date:${date}\nx-amz-target:Logs_20140328.PutLogEvents\n"
-	set request "POST\n/\n\n${req_headers}\n${signed_headers}\n${payload_hash}"
+	set request "POST\n${full_uri}\n\n${req_headers}\n${signed_headers}\n${payload_hash}"
 	set algorithm "AWS4-HMAC-SHA256"
 	set service "logs"
 	set cred_scope "${date_stamp}/${region}/${service}/aws4_request"
@@ -404,7 +405,7 @@ when HTTP_REQUEST {
 	binary scan [CRYPTO::hash -alg sha256 $final_msg] H* payload_hash
 	set signed_headers "content-type;host;x-amz-content-sha256;x-amz-date;x-amz-meta-author"
 	set req_headers "content-type:application/json\nhost:${host}\nx-amz-content-sha256:${payload_hash}\nx-amz-date:${date}\nx-amz-meta-author:BIG-IP\n"
-	set request "PUT\n/${date}.log\n\n${req_headers}\n${signed_headers}\n${payload_hash}"
+	set request "PUT\n${full_uri}\n\n${req_headers}\n${signed_headers}\n${payload_hash}"
 	set algorithm "AWS4-HMAC-SHA256"
 	set service "s3"
 	set cred_scope "${date_stamp}/${region}/${service}/aws4_request"
@@ -452,7 +453,8 @@ when HTTP_REQUEST {
 	array set extra_cmd_arr {
 		azure_oms 		{}
 		aws_cw 			{}
-		aws_s3 			{binary scan [CRYPTO::hash -alg sha256 $final_msg] H* payload_hash}
+		aws_s3 			{set day_date [clock format [clock seconds] -format "%Y%m%d" -gmt true]
+	      binary scan [CRYPTO::hash -alg sha256 $final_msg] H* payload_hash}
 		* 				{}
 	}
 
