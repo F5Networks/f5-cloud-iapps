@@ -327,7 +327,7 @@ when HTTP_REQUEST {
 	array set path_arr {
 		azure_oms 			{/api/logs?api-version=2016-04-01}
 		aws_cw 				{/}
-		aws_s3 				{/${day_date}/${date}.log}
+		aws_s3 				{/BIGIP/logs/${day_date}/${date}.log}
 		* 					{/}
 	}
 	# Keys: $analytics_solution
