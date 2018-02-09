@@ -189,14 +189,15 @@ sys application template /Common/f5.service_discovery {
 
                 # MONITOR
                 set new_monitor [iapp::is ::monitor__monitor $::CREATE_NEW_ANSWER]
+                set http_or_https [expr { [iapp::is ::monitor__type https] ? {https}:{http} }]
 
                 # array keys: $new_pool,$new_monitor
                 array set monitor_arr {
-                    1,1 { monitor [iapp::conf create ltm monitor http \
-                        ${app}_http_monitor \
-                        defaults-from http \
-                        interval 30 \
-                        timeout 91 \
+                    1,1 { monitor [iapp::conf create ltm monitor $http_or_https \
+                        ${app}_${http_or_https}_monitor \
+                        defaults-from $http_or_https \
+                        interval $::monitor__frequency \
+                        timeout [expr { $::monitor__frequency * 3 + 1 } ] \
                         send [iapp::substa send_string_arr($http10,$http_post)]\
                         recv '$::monitor__response'] }
                     1,0 { monitor $::monitor__monitor }
@@ -426,14 +427,21 @@ sys application template /Common/f5.service_discovery {
 
                         choice monitor display "xxlarge" default "/#create_new#" tcl {
 
-                            set ::choices "Create a new health monitor\t/#create_new#\n[iapp::get_items ltm monitor http]"
+                            set ::choices "Create a new health monitor\t/#create_new#\n[iapp::get_items ltm monitor http]\n[iapp::get_items ltm monitor https]"
                             return [iapp::safe_display ::choices]
                         }
                             optional ( basic.display_help == "max" ) {
                                 message monitor_help
                             }
                         optional ( monitor == "/#create_new#" ) {
-
+                        
+                            choice type display "xxlarge" default "http" {
+                                        "HTTP" => "http"  ,
+                                        "HTTPS" => "https"
+                            }
+                                optional ( basic.display_help == "max" ) {
+                                        message type_help
+                                }
                             string uri display "xxlarge" required default "/"
                                 optional ( basic.display_help == "max" ) {
                                     message uri_help
@@ -566,6 +574,8 @@ sys application template /Common/f5.service_discovery {
                     monitor "Application Health"
                     monitor.monitor "Create a new health monitor or use an existing one?"
                     monitor.monitor_help "" "Monitors are used to determine the health of each server. If server does not respond or responds incorrectly, the system will cease to send client requests to that server. The system will continue to monitor the instance and will begin sending requests once the server responds correctly."
+                    monitor.type "What monitor type should be used?"
+                    monitor.type_help "The monitor type selected will determine what type of monitor to create, such as HTTP or HTTPS"
                     monitor.http_method "What type of HTTP request should be sent to the servers?"
                     monitor.http_method_help "" "The HTTP request type determines which HTTP method the monitor sends to the server. GET is the most common request type for web applications."
                     monitor.uri "What HTTP URI should be sent to the servers?"
