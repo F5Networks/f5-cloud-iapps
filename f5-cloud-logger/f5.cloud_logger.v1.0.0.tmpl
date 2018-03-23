@@ -1,4 +1,4 @@
-sys application template f5.cloud_logger.v1.0.0 {
+sys application template /Common/f5.cloud_logger.v1.0.0 {
     actions {
         definition {
             html-help {
@@ -7,7 +7,7 @@ sys application template f5.cloud_logger.v1.0.0 {
 <p>This template creates a set of configuration objects to enable logging and analytics to external solutions</p>
             }
             implementation {
-	## Define some proc(s) for use in implementation
+                ## Define some proc(s) for use in implementation
 	proc tmsh_exe { command } {
 		puts $command
 		exec /usr/bin/tmsh -c $command
@@ -585,8 +585,7 @@ when HTTP_REQUEST {
             macro {
             }
             presentation {
-                include "/Common/f5.apl_common"
-section intro {
+                section intro {
         # APL choice values may be set even if the optional
         # clause is not true. This trick is useful for setting
         # values that APL otherwise would not have access to.
@@ -801,7 +800,7 @@ section internal_config {
                 message mgmt_hostname_help "Type custom management hostname you want to use. "
             }
         }
-        
+
         choice port display "xxlarge" default "yes" {
             "Use this BIG-IP's management port" => "yes"  ,
             "Use a custom BIG-IP management port" => "custom"
@@ -815,7 +814,7 @@ section internal_config {
                 message mgmt_port_help "Type the custom management port you want to use."
             }
         }
-        
+
         optional ( basic.advanced == "yes" ) {
 			string internal_vs_port display "small" validator "PortNumber" default "41001" required
 			optional ( basic.help == "show" ) {
@@ -900,9 +899,9 @@ text {
     internal_config.irule_log_level "What level of internal logging do you want this solution to use (for debug/info during testing)?"
      internal_config.irule_log_level_help ""
 }
-        }
-        role-acl { admin manager resource-admin }
-        run-as none
+            }
+            role-acl { admin manager resource-admin }
+            run-as none
         }
     }
     description none
@@ -910,8 +909,7 @@ text {
     requires-bigip-version-max none
     requires-bigip-version-min 12.1
     requires-modules none
-    signing-key none
+    signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature none
+    tmpl-signature Grq3/+NC+Que+Ix+CdD2pUTcMoguBQhepKzABpsZEh3/5jsf2ZVlk1i3GevBJwov2EHimbpdzj9DEh8s07CvAj0pujhq4A35yuOMDarvLwrmbYSQ9MA/3VIFiwWQQkDLnE3qDDusAy5NrSi14nznG+i0gzZleyCfwGMLbAA8NMwVJPVTSbG7Y43z8z4FGcK4Q5bg2F7zPXWmroSMzhTTJpIBj6B0pbBC2Rd5bVGrIPsPttEZumSvRcCBwBTGiH8HGP5xduFt+CbE6fkKCn45m7Vgm+CvxYSWwaiOlPbBUzT+wmCNEiehh9MfMZqgRGl40ptqrBPPG1PvBLJjmE71Xg==
 }
-
