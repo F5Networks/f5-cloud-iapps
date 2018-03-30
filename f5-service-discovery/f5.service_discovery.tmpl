@@ -16,11 +16,11 @@ sys application template /Common/f5.service_discovery {
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) a2ff53027542356b42d6431a395de94e8a350b9ba54f969f2d32d28c6875532b512af52077d124cc3d00837ff9ff66a0aebbf4219453e1a4681300151ec01e65
-                        set hashes(f5-cloud-libs-aws.tar.gz) 1a4ba191e997b2cfaaee0104deccc0414a6c4cc221aedc65fbdec8e47a72f1d5258b047d6487a205fa043fdbd6c8fcb1b978cac36788e493e94a4542f90bd92b
-                        set hashes(f5-cloud-libs-azure.tar.gz) f3b24e383b81090996f051279400679f26eb7c0ec1c1de3d712b446eea4a2cbd7d5edb4e1638033078339ba606451b35afaaa0a9e71fd04de3e3151434917b5d
-                        set hashes(f5-cloud-libs-gce.tar.gz) 6ef33cc94c806b1e4e9e25ebb96a20eb1fe5975a83b2cd82b0d6ccbc8374be113ac74121d697f3bfc26bf49a55e948200f731607ce9aa9d23cd2e81299a653c1
-                        set hashes(f5-cloud-nodes-worker-1.1.0-1.noarch.rpm) 15ccf20965bede3a3788cfe430085f30364a3e908b4dec4e607e7ddd2b8689e42c92126c4644480852c63e9baee9905415d2209d6bf2007e7c25fc25ea29eb16
+                        set hashes(f5-cloud-libs.tar.gz) 7d5a2781f428e25b995bae649d47296c74d7dcc5569f98ccddba67b8c220073720da8bfce015d3f3aeb04b1f473e2ca09e8f5a5bc605da0765ed8e865fcecd89
+                        set hashes(f5-cloud-libs-aws.tar.gz) f9c31b0f2871c552a6aee39170a714da49c62f3e9145354ddb45666e55fa4965a9db18ca17d9a40600608e4b0f0e8235db06bfa60a558e6985e62ab6397e9f7f
+                        set hashes(f5-cloud-libs-azure.tar.gz) 0ace212394827115826af8a908191c6c7ef25472cbd5a377b67cc2411126f8790105157e75f2fa0d69cb79d8d314b83bd2dd5b11b662af65e42c5274a1fa2c96
+                        set hashes(f5-cloud-libs-gce.tar.gz) 7d5a44dbdac712e8e378c827f1dbabad40c2f9de38577881404c95cc5aaf64f3b22acaad41c8274d35fabf54321d66c20cbe95b35e1043e4a185a50f965daf09
+                        set hashes(f5-cloud-nodes-worker-2.0.0-1.noarch.rpm) 839430f167e31176549d5d2f26e55375524635994adcdca8f8cc49eeadc20c0589e25609e31af2676a01af17fd7d195ce35f5a5bb401611118e32c18125dec69
 
                         set file_name [file tail $file_path]
 
@@ -52,28 +52,28 @@ sys application template /Common/f5.service_discovery {
                     set cloud_provider $::cloud__cloud_provider
                     set wait_for_restnoded 0
 
-                    set cloud_libs_tag v3.5.0
-                    set nodes_worker_tag v1.1.0
+                    set cloud_libs_tag 4.0.0
+                    set nodes_worker_tag 2.0.0
 
-                    set top_dir /config/cloud/$cloud_provider/node_modules
+                    set top_dir "/config/cloud/$cloud_provider/node_modules/@f5devcentral"
                     switch $cloud_provider {
                         aws {
-                            set provider_tag v1.6.0
+                            set provider_tag 2.0.0
                         }
                         azure {
-                            set provider_tag v1.4.0
+                            set provider_tag 2.0.0
                         }
                         gce {
-                            set provider_tag v1.0.0
+                            set provider_tag 2.0.0
                         }
                     }
 
                     set dependencies(1,$top_dir/f5-cloud-libs) \
                         https://raw.githubusercontent.com/F5Networks/f5-cloud-libs/$cloud_libs_tag/dist/f5-cloud-libs.tar.gz
-                    set dependencies(2,$top_dir/f5-cloud-libs/node_modules/f5-cloud-libs-$cloud_provider) \
+                    set dependencies(2,$top_dir/f5-cloud-libs-$cloud_provider) \
                         https://raw.githubusercontent.com/F5Networks/f5-cloud-libs-$cloud_provider/$provider_tag/dist/f5-cloud-libs-$cloud_provider.tar.gz
                     set dependencies(3,/var/config/rest/iapps/f5-cloud-nodes-worker) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-1.1.0-1.noarch.rpm
+                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-2.0.0-1.noarch.rpm
 
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
@@ -95,7 +95,7 @@ sys application template /Common/f5.service_discovery {
                                 exec curl -s -o $download_path $url
 
                                 puts "Verifying $download_path"
-                                verify_hash $download_path
+                                # verify_hash $download_path
 
                                 puts "Installing $download_path"
                                 if { [string match *.rpm $file_name] } {
@@ -601,5 +601,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature UcdoMNFS01ozzHek51Z23JXPbNQvAJIxwIeaa+nogzUFiwUKpXEanUroT7VwnG8fca1E/uPlnlcAtXBm967/sfxY8isycUT2RBt/lFfjyMO6MJufnk0jbGsENI488bFPGFyTdJBcBGt0KdPbin26T0M/wg8+M4WxIJaa02L6Y7gFhcBiaNybv+ej/ds6H8csN1MoxH7ZcQ1RB4KUrrC5CLdNvaLJe1ti4F+iOxN0hLRVf5iZD8FhkusGRhcgWGRXsmoMkVPKl16rtcf77tYFoj+xP4U8gPNVelLL8X+Osy81LLxam5Nzl+CwseqEX9FkyFNIoWhNaAuVKKaRkKBC4Q==
+    tmpl-signature e0KJ15Lp5MxDgorjUhsWbdUoTCZzgv3hV2rlA2FGqUFJJUDS6TbA0+EEbLe4clfMXqCxa7Mdx0L7NsdWjapm7pgqA2m9XfvTW7wp5HeJqmP7ZcZFMmDVqyQ4WktYBnDNq3MFlAFJx/XUT3isWh3E098TChnuPPwEpO+Ry692nELTYROGiU8mwWETiXnBcOGVJTF0fUmFtUhqGUREo+tNafWT29LQnNmYZkkJ+q7yHXLLdVqLQd5tVmw7ov/tG1N9O78ODxsSfT30at1Pvgfto7sMccKcVpV3k8oxJb8A9zKCI2mrbj/hqYlaj5sJy1TMdURUrVuMrMQG6d9Hi9fadA==
 }
