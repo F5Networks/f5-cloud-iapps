@@ -16,9 +16,9 @@ sys application template /Common/f5.service_discovery {
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) 7d5a2781f428e25b995bae649d47296c74d7dcc5569f98ccddba67b8c220073720da8bfce015d3f3aeb04b1f473e2ca09e8f5a5bc605da0765ed8e865fcecd89
+                        set hashes(f5-cloud-libs.tar.gz) acf4fe3d591a8e55c8bc48240b89d4e53fcb95d7efbbd339313bf4517b2f839eacc50191bdab0c2f9d3cfab853a0a980af78febea868033b772308ba68fcecf0
                         set hashes(f5-cloud-libs-aws.tar.gz) f9c31b0f2871c552a6aee39170a714da49c62f3e9145354ddb45666e55fa4965a9db18ca17d9a40600608e4b0f0e8235db06bfa60a558e6985e62ab6397e9f7f
-                        set hashes(f5-cloud-libs-azure.tar.gz) 0ace212394827115826af8a908191c6c7ef25472cbd5a377b67cc2411126f8790105157e75f2fa0d69cb79d8d314b83bd2dd5b11b662af65e42c5274a1fa2c96
+                        set hashes(f5-cloud-libs-azure.tar.gz) 5d3de6b0375872b87a151d1b37ecac80d67936b9aaf8279d978437b881865d2c466718c014119912af312ef8ff4769d989b35663411e28c23ea6057e413e13b8
                         set hashes(f5-cloud-libs-gce.tar.gz) 7d5a44dbdac712e8e378c827f1dbabad40c2f9de38577881404c95cc5aaf64f3b22acaad41c8274d35fabf54321d66c20cbe95b35e1043e4a185a50f965daf09
                         set hashes(f5-cloud-nodes-worker-2.0.0-1.noarch.rpm) 839430f167e31176549d5d2f26e55375524635994adcdca8f8cc49eeadc20c0589e25609e31af2676a01af17fd7d195ce35f5a5bb401611118e32c18125dec69
 
@@ -601,5 +601,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature e0KJ15Lp5MxDgorjUhsWbdUoTCZzgv3hV2rlA2FGqUFJJUDS6TbA0+EEbLe4clfMXqCxa7Mdx0L7NsdWjapm7pgqA2m9XfvTW7wp5HeJqmP7ZcZFMmDVqyQ4WktYBnDNq3MFlAFJx/XUT3isWh3E098TChnuPPwEpO+Ry692nELTYROGiU8mwWETiXnBcOGVJTF0fUmFtUhqGUREo+tNafWT29LQnNmYZkkJ+q7yHXLLdVqLQd5tVmw7ov/tG1N9O78ODxsSfT30at1Pvgfto7sMccKcVpV3k8oxJb8A9zKCI2mrbj/hqYlaj5sJy1TMdURUrVuMrMQG6d9Hi9fadA==
+    tmpl-signature j/NtChuWbgwTAfegNk67zZTuymvAFMc7bDJoIfiiyFE0FRg3QqvOIq5mXbU7t0jRSHfAfvD/Tl868k1vhokOCefR0ooGEgfqVbpj4LPN29RTi7hsxXL/S4rWLYA0hu0eDJf7c7gXLOhnyowlBf7+DFtXE4W7iBaK0SF9RxqTLwUuvOxnkjru+zxMGJJQpst56sEKg42P2FMFcvOR7gt85zyCLuWUEtdUy+7sL3gfNCRXR9d43EXuEnEdIWa5JcyuGxp72nFoCxVbBpAdG8FEgP0WGepZzbbFIjVe7a0e2QwjQxUiRbOu+NV1VqVx3BJrtxBWfWm1vZCVotI4bcIDoQ==
 }
