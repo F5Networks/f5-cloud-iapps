@@ -95,7 +95,7 @@ sys application template /Common/f5.service_discovery {
                                 exec curl -s -o $download_path $url
 
                                 puts "Verifying $download_path"
-                                # verify_hash $download_path
+                                verify_hash $download_path
 
                                 puts "Installing $download_path"
                                 if { [string match *.rpm $file_name] } {
@@ -601,5 +601,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature eQL3/n193uv6B+lJoJnVr0TcE4BGRu727DuqPIg1byu4ySQUvy5fKWSsy//cnJC+odbfkipEW4Tg3MiwZAfNqEtaM99nNmWuqKpky/NU5pltVNvsJorEJ0lJl7S1E+EvNkB8DlA+AzwqggliKB6Ani3IXsa789vbPa5QJflbuE6i+/t6kPYir2o/gC7KHpJjtIr1zkMmGa4ubLOOyNkAcaKiRDz8yLNTha6XDHcTjL/EMrrXSpK78jezG11zsiKfSJZvlWXzQDiaBR6PAx5cGM0JT+gY5/+IJf9Pwg+llt+yaJKJGWiFXVwsJUPQ2e/QArG3OusAWdXVY7LYHIUnNQ==
+    tmpl-signature iNpvqf/jE/xNi7R1EL8jEH/TCvFoGg3CxcZZaTF6hBqN6bzMMGKVTmwAbi9XoVCSOa8gvzIWBI8X+82RHwIFY1/FRAZ7nO0swPh2FrJtGkk+upghGB0DnTI4eUdgIXWN2ZhBKL7oLh5AehMzAXfrbJhi14gd7hiY1DOPD7lt45OS89I274x7oEV1AQxF0igr1zwmN3llPPoYjUSCYE7d8eOKQYd5o2+9kg+HIMFSvlbtt8t06ESFHRgh/PuYL1Az5zeRyk4aiIrP5z9DhhDrN42hMK+kEZ2eaLcU/t6EybFuqXidS9ZNvxyfm0x8b/yyBPDkX2UKsKJ3r3MfjnEAZw==
 }
