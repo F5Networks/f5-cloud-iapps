@@ -16,7 +16,7 @@ sys application template /Common/f5.service_discovery {
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) ef29ea4b9efb080c00a19f85399560264b657c6dcba79f4db793cb6af84202a96b2105701eb9ce6563f02e59a0dd81b0304cb7902f87efb224f9dd8aa64752db
+                        set hashes(f5-cloud-libs.tar.gz) 8ddb28557f0b33ceff5b9a0ee1f30ec27a5fdd1d25f4d08682fd0e82f1a1637429949ddf5458eafd0f384d0f139d1852d91b6cdd4af081511e05de12bc95bec5
                         set hashes(f5-cloud-libs-aws.tar.gz) d99a776cd7d184d98161c0846fd2c4ff6876a344a4491e6b12a592efc99d5bcd9df4ba32d3f5c800fa93f5417cf6986e64fb3b51e038014fd829261ce295f3bb
                         set hashes(f5-cloud-libs-azure.tar.gz) 342fa4ccca856ca1829ac4d1364731983707fbfbe6d81f74078053ca328ec233b273edc40816263a8d3299ed67f6de4d631fc19aac5da74fd1842a544dd74863
                         set hashes(f5-cloud-libs-gce.tar.gz) 66072a397912a2f64ef74f2bb3fcc51c2ca90002d7df67534cf1ace031251d0a2d08f5efb492fa3c46718c65fb24234d2c863dd457e1d300b41dd6f82aca9849
@@ -52,19 +52,19 @@ sys application template /Common/f5.service_discovery {
                     set cloud_provider $::cloud__cloud_provider
                     set wait_for_restnoded 0
 
-                    set cloud_libs_tag 4.0.0
-                    set nodes_worker_tag 2.0.0
+                    set cloud_libs_tag v4.0.3
+                    set nodes_worker_tag v2.0.0
 
                     set top_dir "/config/cloud/$cloud_provider/node_modules/@f5devcentral"
                     switch $cloud_provider {
                         aws {
-                            set provider_tag 2.0.0
+                            set provider_tag v2.0.2
                         }
                         azure {
-                            set provider_tag 2.0.0
+                            set provider_tag v2.0.2
                         }
                         gce {
-                            set provider_tag 2.0.0
+                            set provider_tag v2.0.2
                         }
                     }
 
@@ -84,7 +84,7 @@ sys application template /Common/f5.service_discovery {
                         set path [string range $orderPath [expr {[string first , $orderPath] + 1}] end]
 
                         # download
-                        if { ![file exists $path] } {
+                        if { ![file exists $path] } { 
                             set file_name [file tail $url]
                             set dest_path [file dirname $path]
                             set download_path $DOWNLOAD_DIR/$file_name
@@ -105,7 +105,7 @@ sys application template /Common/f5.service_discovery {
                                     set wait_for_restnoded 1
                                 }
                                 elseif { [string match *.tar.gz $file_name] } {
-                                    exec tar xzf $download_path --directory $dest_path
+                                    exec tar xzf $download_path --directory $dest_path --warning=no-timestamp
                                 }
                                 else {
                                     tmsh::log err "Unknown file type $full_path"
@@ -601,5 +601,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature CKTfNqknyoKE1M8Hm7GsUGhANIsYN72DBqZws/FPImzxmFWMqKIL3yZkScVxAEjgBlmK9tFTvVT+gsglp6BoAoXRHKOmW0ZeBgTrg22GXFsFP5IH3iWl+Txq1XrwMT55g9mtwObhaVGii7TFHYmsRNwkWwCAxYT4vDdGU1w/u+DD82+K7yKZPEzI0C508CpdKEWavQDXHF1tAauENHzl+9AfYrKXdf9TCZ0O6qm3QLKKHKaaQ2uFLyrL7rNDJEIbnLH06/NjoMbgON1hpH0Mvf05bilH+w52l35k4Q0ml+xbE5GOh1nXv6taAboUqDiKnhREwYciBCgee8AI5rVo5A==
+    tmpl-signature GPjPjqS6RlxD+ZTOA43GZi3cxZteij6KSwWFz87lSUbhQHEZ7nKX1m4xAbiyMjBQaOIKxFVh84z8U9tSQ6cy5GR558pasqw9Fh+VddKQcuhyFQLoaGmjtHz+gVlgk73QoiuSuk3KwD7cH4Lp2pjJXqQpayPOlKHI37DAJuncQNOTCk96bRV9I37ptDBDmHP++lomr/iQE3/MmUHpOM7OtAnGUxInGEzLS148qDtysuzhFr8wLamP6y1LtRSTm8w6b/HyVMb0l1AI3vHeHei+YJfi4gn8HMZA108sNJzljuttw/ngJcESblURqUeClddHsd58a99of6IQn7edcLUSvQ==
 }
