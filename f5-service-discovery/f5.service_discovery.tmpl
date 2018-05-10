@@ -16,11 +16,11 @@ sys application template /Common/f5.service_discovery {
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) 8ddb28557f0b33ceff5b9a0ee1f30ec27a5fdd1d25f4d08682fd0e82f1a1637429949ddf5458eafd0f384d0f139d1852d91b6cdd4af081511e05de12bc95bec5
-                        set hashes(f5-cloud-libs-aws.tar.gz) d99a776cd7d184d98161c0846fd2c4ff6876a344a4491e6b12a592efc99d5bcd9df4ba32d3f5c800fa93f5417cf6986e64fb3b51e038014fd829261ce295f3bb
-                        set hashes(f5-cloud-libs-azure.tar.gz) 342fa4ccca856ca1829ac4d1364731983707fbfbe6d81f74078053ca328ec233b273edc40816263a8d3299ed67f6de4d631fc19aac5da74fd1842a544dd74863
+                        set hashes(f5-cloud-libs.tar.gz) f6e232abbdf511dfb5445d74ebfb9f409058342e88e65bb7f81b60756fd10daca28eea4c6e3c5a3b6a94337762d731bc2d6d91a0f35a903acf0c22b65b43d2cb
+                        set hashes(f5-cloud-libs-aws.tar.gz) e06f724ff1c7fc41d95ef87fc6f7a118d7e64d5555b5e9548ee7582bc3eb8d461ca72266a0758837a951ccd465876c877329fe8a47b38da5183c832680b76b93
+                        set hashes(f5-cloud-libs-azure.tar.gz) f1a5e8cfc639063885b595282cb5befdaf88d51ef62bd26e3658e2f3f3b5bbbb2ce0ba54ec1cd12ba87a2336134588affe63052511f7c6c93fb7fc73b8a0e095
                         set hashes(f5-cloud-libs-gce.tar.gz) 66072a397912a2f64ef74f2bb3fcc51c2ca90002d7df67534cf1ace031251d0a2d08f5efb492fa3c46718c65fb24234d2c863dd457e1d300b41dd6f82aca9849
-                        set hashes(f5-cloud-nodes-worker-2.0.0-1.noarch.rpm) 839430f167e31176549d5d2f26e55375524635994adcdca8f8cc49eeadc20c0589e25609e31af2676a01af17fd7d195ce35f5a5bb401611118e32c18125dec69
+                        set hashes(f5-cloud-nodes-worker-2.1.0-1.noarch.rpm) 6eed9b7130d34a2f49e69f8377b0fdff38d47a9fa79e1175d3e4aae061cf3c84cba27fc1483b516204e5d4657ed15c26b5e47f7b4059cfecd77a9d5df1024f6d
 
                         set file_name [file tail $file_path]
 
@@ -44,79 +44,220 @@ sys application template /Common/f5.service_discovery {
                     }
                 }
 
-                proc install_dependencies {} {
+                proc compare_versions { version1 version2 } {
+                    set version1_parts [split $version1 .]
+                    set version2_parts [split $version2 .]
 
-                    puts "Checking dependencies"
-
-                    set DOWNLOAD_DIR /var/config/rest/downloads
-                    set cloud_provider $::cloud__cloud_provider
-                    set wait_for_restnoded 0
-
-                    set cloud_libs_tag v4.0.3
-                    set nodes_worker_tag v2.0.0
-
-                    set top_dir "/config/cloud/$cloud_provider/node_modules/@f5devcentral"
-                    switch $cloud_provider {
-                        aws {
-                            set provider_tag v2.0.2
-                        }
-                        azure {
-                            set provider_tag v2.0.2
-                        }
-                        gce {
-                            set provider_tag v2.0.2
-                        }
+                    if  { $version1 eq $version2 } {
+                        return 0
                     }
 
-                    set dependencies(1,$top_dir/f5-cloud-libs) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-libs/$cloud_libs_tag/dist/f5-cloud-libs.tar.gz
-                    set dependencies(2,$top_dir/f5-cloud-libs-$cloud_provider) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-libs-$cloud_provider/$provider_tag/dist/f5-cloud-libs-$cloud_provider.tar.gz
-                    set dependencies(3,/var/config/rest/iapps/f5-cloud-nodes-worker) \
-                        https://raw.githubusercontent.com/F5Networks/f5-cloud-workers/$nodes_worker_tag/dist/f5-cloud-nodes-worker-2.0.0-1.noarch.rpm
+                    set index 0
+                    while { [lindex $version1_parts $index] == [lindex $version2_parts $index] } {
+                        if { $index == [llength $version1_parts] } {
+                            break
+                        }
+                        set index [expr {$index + 1}]
+                    }
 
+                    if { $index == [llength $version1_parts] } {
+                        return 0
+                    }
+
+                    if { [lindex $version1_parts $index] > [lindex $version2_parts $index] } {
+                        return 1
+                    }
+
+                    if { [lindex $version1_parts $index] == [lindex $version2_parts $index] } {
+                        return 0
+                    }
+
+                    return -1
+                }
+
+                proc get_installed_version { path file_name } {
+                    set version {}
+                    if { [string match */node_modules/* $path] } {
+                        # if it's a node module...
+                        set version [exec cat $path/package.json | jq -r .version]
+                    } elseif { [string match *.rpm $file_name] } {
+                        # if it's an rpm...
+                        regexp {(\d+\.\d+\.\d+)-\d+} $file_name -> version
+                    } else {
+                        puts "Unknown file type $path $file_name"
+                    }
+                    return $version
+                }
+
+                proc download { url file_name dest_path } {
+                    set download_dir /var/config/rest/downloads
                     set mgmt_port [tmsh::get_config sys httpd ssl-port]
                     set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
 
-                    foreach orderPath [lsort [array names dependencies]] {
+                    set download_path $download_dir/$file_name
 
-                        set url $dependencies($orderPath)
-                        set path [string range $orderPath [expr {[string first , $orderPath] + 1}] end]
+                    set needs_wait 0
 
-                        # download
-                        if { ![file exists $path] } { 
-                            set file_name [file tail $url]
-                            set dest_path [file dirname $path]
-                            set download_path $DOWNLOAD_DIR/$file_name
-                            exec mkdir -p $dest_path
+                    if { [catch {
+                        exec mkdir -p $dest_path
 
-                            if { [catch {
-                                puts "Downloading $url"
-                                exec curl -s -o $download_path $url
+                        puts "Downloading $url"
+                        exec curl -s -o $download_path $url
 
-                                puts "Verifying $download_path"
-                                verify_hash $download_path
+                        puts "Verifying $download_path"
+                        verify_hash $download_path
 
-                                puts "Installing $download_path"
-                                if { [string match *.rpm $file_name] } {
-                                    set curl_out [exec curl -sku admin: -H "Content-Type: application/json" -d "{'operation': 'INSTALL', 'packageFilePath': \'$download_path\'}" https://localhost:$mgmt_port/mgmt/shared/iapp/package-management-tasks]
-                                    puts "curl install result: $curl_out"
+                        puts "Installing $download_path"
+                        if { [string match *.rpm $file_name] } {
+                            set curl_out [exec curl -sku admin: -H "Content-Type: application/json" -d "{'operation': 'INSTALL', 'packageFilePath': \'$download_path\'}" https://localhost:$mgmt_port/mgmt/shared/iapp/package-management-tasks]
+                            puts "curl install result: $curl_out"
 
-                                    set wait_for_restnoded 1
-                                }
-                                elseif { [string match *.tar.gz $file_name] } {
-                                    exec tar xzf $download_path --directory $dest_path --warning=no-timestamp
-                                }
-                                else {
-                                    tmsh::log err "Unknown file type $full_path"
-                                    error "Unknown file type $full_path"
-                                    exit 1
-                                }
-                            } err ]} {
-                                tmsh::log err "Error installing $url: $err"
-                                error "Error installing $url: $err"
+                            set needs_wait 1
+                        } elseif { [string match *.tar.gz $file_name] } {
+                            exec tar xzf $download_path --directory $dest_path --warning=no-timestamp
+                        } else {
+                            tmsh::log err "Unknown file type $full_path"
+                            error "Unknown file type $full_path"
+                            exit 1
+                        }
+                    } err ]} {
+                        tmsh::log err "Error installing $url: $err"
+                        error "Error installing $url: $err"
+                        exit 1
+                    }
+
+                    return $needs_wait
+                }
+
+                proc install_dependencies {} {
+                    puts "Checking dependencies"
+
+                    set cloud_provider $::cloud__cloud_provider
+                    set wait_for_restnoded 0
+
+                    set common_install_prefix /config/cloud
+                    set sd_install_prefix $common_install_prefix/iapps/service_discovery
+                    set template_cloud_dir $common_install_prefix/$cloud_provider/node_modules/@f5devcentral
+
+                    set min_cloud_libs_version 4.1.0
+                    set min_nodes_worker_version 2.1.0
+
+                    switch $cloud_provider {
+                        aws {
+                            set min_provider_version 2.0.3
+                        }
+                        azure {
+                            set min_provider_version 2.1.0
+                        }
+                        gce {
+                            set min_provider_version 2.0.2
+                        }
+                    }
+
+                    set cloud_libs_tag v$min_cloud_libs_version
+                    set provider_tag v$min_provider_version
+                    set nodes_worker_tag v$min_nodes_worker_version
+
+                    # each element in list is a list of 'location_to_search min_acceptable_version download_url whether_or_not_shared'
+                    # for example, the node-worker is shared - we can only install one instance on the BIG-IP
+                    set dependencies [list \
+                        [list $template_cloud_dir/f5-cloud-libs                       $min_cloud_libs_version   https://cdn.f5.com/product/cloudsolutions/f5-cloud-libs/$cloud_libs_tag/f5-cloud-libs.tar.gz 0] \
+                        [list $template_cloud_dir/f5-cloud-libs-$cloud_provider       $min_provider_version     https://cdn.f5.com/product/cloudsolutions/f5-cloud-libs-$cloud_provider/$provider_tag/f5-cloud-libs-$cloud_provider.tar.gz 0] \
+                        [list /var/config/rest/iapps/f5-cloud-nodes-worker            $min_nodes_worker_version https://cdn.f5.com/product/cloudsolutions/f5-cloud-workers/f5-cloud-nodes-worker/$nodes_worker_tag/f5-cloud-nodes-worker-$min_nodes_worker_version-1.noarch.rpm 1] \
+                    ]
+
+                    set unshared_needs_install 0
+                    set shared_needs_install 0
+                    set install_location {}
+
+                    # figure out if we need to install anything
+                    foreach dependency $dependencies {
+                        set path [lindex $dependency 0]
+                        set min_version [lindex $dependency 1]
+                        set download_url [lindex $dependency 2]
+                        set shared [lindex $dependency 3]
+
+                        set sd_path [string map "$common_install_prefix $sd_install_prefix" $path]
+                        set file_name [file tail $download_url]
+
+                        puts "checking $path and $sd_path"
+                        if { ![file exists $path] && ![file exists $sd_path] } {
+                            # if the file doesn't exist at all, download it
+                            puts "$path does not exist. Will install."
+                            if { $shared == 1 } {
+                                set shared_needs_install 1
+                            } else {
+                                set unshared_needs_install 1
+                            }
+                        } else {
+                            # check to see if a recent enough version is installed
+
+                            if { [file exists $path] } {
+                                set path_to_check $path
+                            } else {
+                                set path_to_check $sd_path
+                            }
+
+                            set installed_version [get_installed_version $path_to_check $file_name]
+
+                            if { [string length $installed_version] == 0 } {
+                                puts "Could not get version of $path_to_check $file_name"
                                 exit 1
                             }
+
+                            if { [compare_versions $installed_version $min_version] < 0 } {
+                                puts "$path_to_check $file_name is too old. Will install."
+                                if { $shared == 1 } {
+                                    set shared_needs_install 1
+                                } else {
+                                    set unshared_needs_install 1
+                                }
+                            }
+                        }
+                    }
+
+                    if { $shared_needs_install == 1 } {
+                        puts "Installing shared dependencies"
+                        foreach dependency $dependencies {
+                            set shared [lindex $dependency 3]
+
+                            if { $shared == 1 } {
+                                set path [lindex $dependency 0]
+                                set download_url [lindex $dependency 2]
+
+                                set sd_path [string map "$common_install_prefix $sd_install_prefix" $path]
+                                set file_name [file tail $download_url]
+
+                                set dest_path [file dirname $sd_path]
+                                set wait_for_restnoded [download $download_url $file_name $dest_path]
+                            }
+                        }
+                    }
+
+                    if { $unshared_needs_install == 1 } {
+                        puts "Installing unshared dependencies"
+                        set install_location $sd_install_prefix
+                        foreach dependency $dependencies {
+                            set shared [lindex $dependency 3]
+
+                            if { $shared == 0 } {
+                                set path [lindex $dependency 0]
+                                set download_url [lindex $dependency 2]
+
+                                set sd_path [string map "$common_install_prefix $sd_install_prefix" $path]
+                                set file_name [file tail $download_url]
+
+                                set dest_path [file dirname $sd_path]
+                                set wait_for_restnoded [download $download_url $file_name $dest_path]
+                            }
+                        }
+                    } else {
+                        # if a good version is installed, we need to know if we are using the
+                        # version installed by the template or the one installed by this iapp
+                        if { [file exists $sd_install_prefix] } {
+                            set install_location $sd_install_prefix
+                        } else {
+                            set install_location $common_install_prefix
                         }
                     }
 
@@ -124,6 +265,8 @@ sys application template /Common/f5.service_discovery {
                     if { $wait_for_restnoded == 1 } {
                         after 3000
                     }
+
+                    return $install_location
                 }
 
                 proc url_init {} {
@@ -157,7 +300,7 @@ sys application template /Common/f5.service_discovery {
 
                 iapp::template start
 
-                install_dependencies
+                set cloud_libs_base_dir [install_dependencies]
                 url_init
 
                 # constants
@@ -215,8 +358,7 @@ sys application template /Common/f5.service_discovery {
                 set new_pool [iapp::is ::pool__pool_to_use "/#create_new#"]
                 if { $new_pool } {
                     set pool_name /${partition}/${app}.app/${app}_pool
-                }
-                else {
+                } else {
                     set pool_name $::pool__pool_to_use
                 }
 
@@ -244,16 +386,14 @@ sys application template /Common/f5.service_discovery {
                             exit
                         }
 
-                        set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: --max-time 30 https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=<PROVIDER_OPTIONS>);
+                        set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: --max-time 30 https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?cloudLibsBaseDir=<CLOUD_LIBS_BASE_DIR>\\&mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=<PROVIDER_OPTIONS>);
                             echo \$NODE_JSON | jq -r 'if type == \"array\" then \[.\[\] | \"\\(.ip):<MEMBER_PORT> { address \\(.ip) description \\(.id) connection-limit <CONNECTION_LIMIT> }\"\]  | join (\" \") elif has(\"code\") then error(\"error from node worker: \" + .message) else error(\"unxpected response from node worker\") end'"]
 
                         if { $members eq "" } {
                             puts "Service Discovery: No matching members found"
-                        }
-                        elseif { [string first "jq: error:" $members] == 0 } {
+                        } elseif { [string first "jq: error:" $members] == 0 } {
                             puts "Service Discovery: Error parsing nodes: $members"
-                        }
-                        else {
+                        } else {
                             tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \}
                         }
                     } err ]} {
@@ -268,14 +408,15 @@ sys application template /Common/f5.service_discovery {
                 }
 
                 set common_script_map "
-                    <CLOUD>             $::cloud__cloud_provider
-                    <APP_NAME>          /${partition}/${app}.app/${app}
-                    <POOL_TO_USE>       $pool_name
-                    <MEMBER_PORT>       $::pool__member_port
-                    <CONNECTION_LIMIT>  $::pool__member_conn_limit
-                    <MEMBER_TAG_KEY>    $::pool__tag_key
-                    <MEMBER_TAG_VALUE>  $::pool__tag_value
-                    <ADDRESS_TYPE>      $::pool__public_private
+                    <CLOUD>               $::cloud__cloud_provider
+                    <CLOUD_LIBS_BASE_DIR> [url_encode $cloud_libs_base_dir]
+                    <APP_NAME>            /${partition}/${app}.app/${app}
+                    <POOL_TO_USE>         $pool_name
+                    <MEMBER_PORT>         $::pool__member_port
+                    <CONNECTION_LIMIT>    $::pool__member_conn_limit
+                    <MEMBER_TAG_KEY>      $::pool__tag_key
+                    <MEMBER_TAG_VALUE>    $::pool__tag_value
+                    <ADDRESS_TYPE>        $::pool__public_private
                 "
 
                 switch $::cloud__cloud_provider {
@@ -601,5 +742,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature GPjPjqS6RlxD+ZTOA43GZi3cxZteij6KSwWFz87lSUbhQHEZ7nKX1m4xAbiyMjBQaOIKxFVh84z8U9tSQ6cy5GR558pasqw9Fh+VddKQcuhyFQLoaGmjtHz+gVlgk73QoiuSuk3KwD7cH4Lp2pjJXqQpayPOlKHI37DAJuncQNOTCk96bRV9I37ptDBDmHP++lomr/iQE3/MmUHpOM7OtAnGUxInGEzLS148qDtysuzhFr8wLamP6y1LtRSTm8w6b/HyVMb0l1AI3vHeHei+YJfi4gn8HMZA108sNJzljuttw/ngJcESblURqUeClddHsd58a99of6IQn7edcLUSvQ==
+    tmpl-signature none
 }
