@@ -79,7 +79,7 @@ sys application template /Common/f5.service_discovery {
                     set version {}
                     if { [string match */node_modules/* $path] } {
                         # if it's a node module...
-                        set version [exec cat $path/package.json | jq -r .version]
+                        set version [exec cat $path/package.json | /usr/bin/jq -r .version]
                     } elseif { [string match *.rpm $file_name] } {
                         # if it's an rpm...
                         regexp {(\d+\.\d+\.\d+)-\d+} $file_name -> version
@@ -102,14 +102,14 @@ sys application template /Common/f5.service_discovery {
                         exec mkdir -p $dest_path
 
                         puts "Downloading $url"
-                        exec curl -s -o $download_path $url
+                        exec /usr/bin/curl -s -o $download_path $url
 
                         puts "Verifying $download_path"
                         verify_hash $download_path
 
                         puts "Installing $download_path"
                         if { [string match *.rpm $file_name] } {
-                            set curl_out [exec curl -sku admin: -H "Content-Type: application/json" -d "{'operation': 'INSTALL', 'packageFilePath': \'$download_path\'}" https://localhost:$mgmt_port/mgmt/shared/iapp/package-management-tasks]
+                            set curl_out [exec /usr/bin/curl -sku admin: -H "Content-Type: application/json" -d "{'operation': 'INSTALL', 'packageFilePath': \'$download_path\'}" https://localhost:$mgmt_port/mgmt/shared/iapp/package-management-tasks]
                             puts "curl install result: $curl_out"
 
                             set needs_wait 1
@@ -282,7 +282,7 @@ sys application template /Common/f5.service_discovery {
                     array set url_map { " " + \n %0d%0a }
                 }
 
-                proc url_encode {string} {
+                proc url_encode { string } {
                     variable url_map
                     variable url_alphanumeric
 
@@ -296,6 +296,13 @@ sys application template /Common/f5.service_discovery {
                     # This quotes cases like $url_map([) or $url_map($) => $url_map(\[) ...
                     regsub -all {[][{})\\]\)} $string {\\&} string
                     return [subst -nocommand $string]
+                }
+
+                proc store_secret { secret salt_string } {
+                    set salt [exec echo -n $salt_string | /usr/bin/openssl dgst -sha512 -binary | /usr/bin/xxd -p -c 128]
+                    set post_body "{\"operation\": \"ENCRYPT\", \"data\": $secret, \"salt\": \"$salt\"}"
+                    set response [exec /usr/bin/curl -sku admin: -X POST -H "Content-Type: application/json" -d $post_body http://localhost:8100/shared/restricted-store/crypto]
+                    return [exec echo $response | /usr/bin/jq -r .id]
                 }
 
                 iapp::template start
@@ -380,14 +387,14 @@ sys application template /Common/f5.service_discovery {
                         set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
 
                         # check that the nodes worker is available (it might not be at boot time)
-                        set available [exec /bin/bash -c "curl -sku admin: --max-time 30 https://localhost:$mgmt_port/mgmt/shared/cloud/nodes/available"]
+                        set available [exec /bin/bash -c "/usr/bin/curl -sku admin: --max-time 30 https://localhost:$mgmt_port/mgmt/shared/cloud/nodes/available"]
                         if { $available ne "{}" } {
                             puts "Service Discovery: nodes worker not yet available"
                             exit
                         }
 
-                        set members [exec /bin/bash -c "NODE_JSON=\$(curl -sku admin: --max-time 30 https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?cloudLibsBaseDir=<CLOUD_LIBS_BASE_DIR>\\&mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=<PROVIDER_OPTIONS>);
-                            echo \$NODE_JSON | jq -r 'if type == \"array\" then \[.\[\] | \"\\(.ip):<MEMBER_PORT> { address \\(.ip) description \\(.id) connection-limit <CONNECTION_LIMIT> }\"\]  | join (\" \") elif has(\"code\") then error(\"error from node worker: \" + .message) else error(\"unxpected response from node worker\") end'"]
+                        set members [exec /bin/bash -c "NODE_JSON=\$(/usr/bin/curl -sku admin: --max-time 30 https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?cloudLibsBaseDir=<CLOUD_LIBS_BASE_DIR>\\&mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=<PROVIDER_OPTIONS>);
+                            echo \$NODE_JSON | /usr/bin/jq -r 'if type == \"array\" then \[.\[\] | \"\\(.ip):<MEMBER_PORT> { address \\(.ip) description \\(.id) connection-limit <CONNECTION_LIMIT> }\"\]  | join (\" \") elif has(\"code\") then error(\"error from node worker: \" + .message) else error(\"unxpected response from node worker\") end'"]
 
                         if { $members eq "" } {
                             puts "Service Discovery: No matching members found"
@@ -424,7 +431,12 @@ sys application template /Common/f5.service_discovery {
                         set provider_options [url_encode roleArn=$::cloud__aws_role_arn,externalId=$::cloud__aws_external_id,region=$::cloud__aws_region]
                     }
                     azure {
-                        set provider_options [url_encode resourceGroup=$::cloud__azure_resource_group,subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,secret=$::cloud__azure_sp_secret]
+                        set data ""
+                        append data "{\"servicePrincipalSecret\":"
+                        append data \"$::cloud__azure_sp_secret\"
+                        append data "}"
+                        set secret_id [store_secret $data $::cloud__azure_client_id+$::cloud__azure_tenant_id]
+                        set provider_options [url_encode resourceGroup=$::cloud__azure_resource_group,subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,secretId=$secret_id]
                     }
                     gce {
                         set provider_options [url_encode region=$::cloud__gce_region]
