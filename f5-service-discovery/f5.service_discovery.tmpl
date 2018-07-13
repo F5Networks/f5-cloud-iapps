@@ -13,14 +13,18 @@ sys application template /Common/f5.service_discovery {
             implementation {
                 package require iapp 1.3.0
 
+                set cloud_libs_min_version 4.3.0
+                set aws_provider_min_version 2.2.0
+                set azure_provider_min_version 2.3.0
+                set gce_provider_min_version 2.2.0
+
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) f6e232abbdf511dfb5445d74ebfb9f409058342e88e65bb7f81b60756fd10daca28eea4c6e3c5a3b6a94337762d731bc2d6d91a0f35a903acf0c22b65b43d2cb
-                        set hashes(f5-cloud-libs-aws.tar.gz) e06f724ff1c7fc41d95ef87fc6f7a118d7e64d5555b5e9548ee7582bc3eb8d461ca72266a0758837a951ccd465876c877329fe8a47b38da5183c832680b76b93
-                        set hashes(f5-cloud-libs-azure.tar.gz) f1a5e8cfc639063885b595282cb5befdaf88d51ef62bd26e3658e2f3f3b5bbbb2ce0ba54ec1cd12ba87a2336134588affe63052511f7c6c93fb7fc73b8a0e095
-                        set hashes(f5-cloud-libs-gce.tar.gz) 66072a397912a2f64ef74f2bb3fcc51c2ca90002d7df67534cf1ace031251d0a2d08f5efb492fa3c46718c65fb24234d2c863dd457e1d300b41dd6f82aca9849
-                        set hashes(f5-cloud-nodes-worker-2.1.0-1.noarch.rpm) 6eed9b7130d34a2f49e69f8377b0fdff38d47a9fa79e1175d3e4aae061cf3c84cba27fc1483b516204e5d4657ed15c26b5e47f7b4059cfecd77a9d5df1024f6d
+                        set hashes(f5-cloud-libs.tar.gz) 8122408b7df1f9cf6f18fc3bc5ccfdfd01a5ed849213d1aa0ebf85a61339a1acec90f9370c00265436b223f0008aa1f86cedda3096fe0107a8e930fbcbc5fd41
+                        set hashes(f5-cloud-libs-aws.tar.gz) 9263a6a2b2461f48840a1612bf9e0fe0e4fec171e9748347baaba61bd23b76977378e202093e3d0a0e8711d9e8259cdfe433ff71168c1b7e94add35e057b9d5a
+                        set hashes(f5-cloud-libs-azure.tar.gz) 3847572a43446e49b08c105baaca18fe4bc5b1990178ea0220d8272da916bb67501e0ea8bae3f250e950944428fe9fd24c9ac5770ffd781b380c2cfc366eaef1
+                        set hashes(f5-cloud-libs-gce.tar.gz) 8026a360d266dde45828da95c7c1981e953e46720d4d4a871c642952f3554791e8d2e519472c505c0809ca07a0e22c5e2445a37c1470ff8b52f8e70c15a46f23
 
                         set file_name [file tail $file_path]
 
@@ -79,10 +83,7 @@ sys application template /Common/f5.service_discovery {
                     set version {}
                     if { [string match */node_modules/* $path] } {
                         # if it's a node module...
-                        set version [exec cat $path/package.json | /usr/bin/jq -r .version]
-                    } elseif { [string match *.rpm $file_name] } {
-                        # if it's an rpm...
-                        regexp {(\d+\.\d+\.\d+)-\d+} $file_name -> version
+                        set version [exec /bin/cat $path/package.json | /usr/bin/jq -r .version]
                     } else {
                         puts "Unknown file type $path $file_name"
                     }
@@ -96,10 +97,8 @@ sys application template /Common/f5.service_discovery {
 
                     set download_path $download_dir/$file_name
 
-                    set needs_wait 0
-
                     if { [catch {
-                        exec mkdir -p $dest_path
+                        exec /bin/mkdir -p $dest_path
 
                         puts "Downloading $url"
                         exec /usr/bin/curl -s -o $download_path $url
@@ -108,13 +107,8 @@ sys application template /Common/f5.service_discovery {
                         verify_hash $download_path
 
                         puts "Installing $download_path"
-                        if { [string match *.rpm $file_name] } {
-                            set curl_out [exec /usr/bin/curl -sku admin: -H "Content-Type: application/json" -d "{'operation': 'INSTALL', 'packageFilePath': \'$download_path\'}" https://localhost:$mgmt_port/mgmt/shared/iapp/package-management-tasks]
-                            puts "curl install result: $curl_out"
-
-                            set needs_wait 1
-                        } elseif { [string match *.tar.gz $file_name] } {
-                            exec tar xzf $download_path --directory $dest_path --warning=no-timestamp
+                        if { [string match *.tar.gz $file_name] } {
+                            exec /bin/tar xzf $download_path --directory $dest_path --warning=no-timestamp
                         } else {
                             tmsh::log err "Unknown file type $full_path"
                             error "Unknown file type $full_path"
@@ -125,70 +119,25 @@ sys application template /Common/f5.service_discovery {
                         error "Error installing $url: $err"
                         exit 1
                     }
-
-                    return $needs_wait
                 }
 
-                proc install_dependencies {} {
-                    puts "Checking dependencies"
-
-                    set cloud_provider $::cloud__cloud_provider
-                    set wait_for_restnoded 0
-
-                    set common_install_prefix /config/cloud
-                    set sd_install_prefix $common_install_prefix/iapps/service_discovery
-                    set template_cloud_dir $common_install_prefix/$cloud_provider/node_modules/@f5devcentral
-
-                    set min_cloud_libs_version 4.1.0
-                    set min_nodes_worker_version 2.1.0
-
-                    switch $cloud_provider {
-                        aws {
-                            set min_provider_version 2.0.3
-                        }
-                        azure {
-                            set min_provider_version 2.1.0
-                        }
-                        gce {
-                            set min_provider_version 2.0.2
-                        }
-                    }
-
-                    set cloud_libs_tag v$min_cloud_libs_version
-                    set provider_tag v$min_provider_version
-                    set nodes_worker_tag v$min_nodes_worker_version
-
-                    # each element in list is a list of 'location_to_search min_acceptable_version download_url whether_or_not_shared'
-                    # for example, the node-worker is shared - we can only install one instance on the BIG-IP
-                    set dependencies [list \
-                        [list $template_cloud_dir/f5-cloud-libs                       $min_cloud_libs_version   https://cdn.f5.com/product/cloudsolutions/f5-cloud-libs/$cloud_libs_tag/f5-cloud-libs.tar.gz 0] \
-                        [list $template_cloud_dir/f5-cloud-libs-$cloud_provider       $min_provider_version     https://cdn.f5.com/product/cloudsolutions/f5-cloud-libs-$cloud_provider/$provider_tag/f5-cloud-libs-$cloud_provider.tar.gz 0] \
-                        [list /var/config/rest/iapps/f5-cloud-nodes-worker            $min_nodes_worker_version https://cdn.f5.com/product/cloudsolutions/f5-cloud-workers/f5-cloud-nodes-worker/$nodes_worker_tag/f5-cloud-nodes-worker-$min_nodes_worker_version-1.noarch.rpm 1] \
-                    ]
-
-                    set unshared_needs_install 0
-                    set shared_needs_install 0
-                    set install_location {}
+                proc is_install_required { dependencies template_install_prefix sd_install_prefix } {
+                    set needs_install 0
 
                     # figure out if we need to install anything
                     foreach dependency $dependencies {
                         set path [lindex $dependency 0]
                         set min_version [lindex $dependency 1]
                         set download_url [lindex $dependency 2]
-                        set shared [lindex $dependency 3]
 
-                        set sd_path [string map "$common_install_prefix $sd_install_prefix" $path]
+                        set sd_path [string map "$template_install_prefix $sd_install_prefix" $path]
                         set file_name [file tail $download_url]
 
                         puts "checking $path and $sd_path"
                         if { ![file exists $path] && ![file exists $sd_path] } {
                             # if the file doesn't exist at all, download it
                             puts "$path does not exist. Will install."
-                            if { $shared == 1 } {
-                                set shared_needs_install 1
-                            } else {
-                                set unshared_needs_install 1
-                            }
+                            set needs_install 1
                         } else {
                             # check to see if a recent enough version is installed
 
@@ -207,66 +156,72 @@ sys application template /Common/f5.service_discovery {
 
                             if { [compare_versions $installed_version $min_version] < 0 } {
                                 puts "$path_to_check $file_name is too old. Will install."
-                                if { $shared == 1 } {
-                                    set shared_needs_install 1
-                                } else {
-                                    set unshared_needs_install 1
-                                }
+                                set needs_install 1
                             }
                         }
                     }
 
-                    if { $shared_needs_install == 1 } {
-                        puts "Installing shared dependencies"
-                        foreach dependency $dependencies {
-                            set shared [lindex $dependency 3]
+                    return $needs_install
+                }
 
-                            if { $shared == 1 } {
-                                set path [lindex $dependency 0]
-                                set download_url [lindex $dependency 2]
+                proc install_dependencies { cloud_provider } {
+                    puts "Checking dependencies"
 
-                                set sd_path [string map "$common_install_prefix $sd_install_prefix" $path]
-                                set file_name [file tail $download_url]
+                    set common_install_prefix /config/cloud
+                    set template_install_prefix $common_install_prefix/$cloud_provider
+                    set sd_install_prefix $common_install_prefix/iapps/service_discovery
 
-                                set dest_path [file dirname $sd_path]
-                                set wait_for_restnoded [download $download_url $file_name $dest_path]
-                            }
+                    set template_install_dir $template_install_prefix/node_modules/@f5devcentral
+
+                    switch $cloud_provider {
+                        aws {
+                            set provider_min_version $aws_provider_min_version
+                        }
+                        azure {
+                            set provider_min_version $azure_provider_min_version
+                        }
+                        gce {
+                            set provider_min_version $gce_provider_min_version
                         }
                     }
 
-                    if { $unshared_needs_install == 1 } {
-                        puts "Installing unshared dependencies"
-                        set install_location $sd_install_prefix
+                    set cloud_libs_tag release-$cloud_libs_min_version
+                    set provider_tag release-$provider_min_version
+#                    set cloud_libs_tag v$cloud_libs_min_version
+#                    set provider_tag v$provider_min_version
+
+                    # each element in list is a list of 'location_to_search min_acceptable_version download_url'
+                    set dependencies [list \
+                        [list $template_install_dir/f5-cloud-libs                  $cloud_libs_min_version   https://cdn.f5.com/product/cloudsolutions/f5-cloud-libs/$cloud_libs_tag/f5-cloud-libs.tar.gz 0] \
+                        [list $template_install_dir/f5-cloud-libs-$cloud_provider  $provider_min_version     https://cdn.f5.com/product/cloudsolutions/f5-cloud-libs-$cloud_provider/$provider_tag/f5-cloud-libs-$cloud_provider.tar.gz 0] \
+                    ]
+
+                    set install_prefix {}
+
+                    if { [is_install_required $dependencies $template_install_prefix $sd_install_prefix] == 1 } {
+                        puts "Installing dependencies"
+                        set install_prefix $sd_install_prefix
                         foreach dependency $dependencies {
-                            set shared [lindex $dependency 3]
+                            set path [lindex $dependency 0]
+                            set download_url [lindex $dependency 2]
 
-                            if { $shared == 0 } {
-                                set path [lindex $dependency 0]
-                                set download_url [lindex $dependency 2]
+                            set sd_path [string map "$template_install_prefix $sd_install_prefix" $path]
+                            set file_name [file tail $download_url]
 
-                                set sd_path [string map "$common_install_prefix $sd_install_prefix" $path]
-                                set file_name [file tail $download_url]
-
-                                set dest_path [file dirname $sd_path]
-                                set wait_for_restnoded [download $download_url $file_name $dest_path]
-                            }
+                            set dest_path [file dirname $sd_path]
+                            download $download_url $file_name $dest_path
                         }
                     } else {
                         # if a good version is installed, we need to know if we are using the
                         # version installed by the template or the one installed by this iapp
                         if { [file exists $sd_install_prefix] } {
-                            set install_location $sd_install_prefix
+                            set install_prefix $sd_install_prefix
                         } else {
-                            set install_location $common_install_prefix
+                            set install_prefix $template_install_prefix
                         }
                     }
 
-                    # If we installed something via REST, restnoded will restart - wait for it
-                    if { $wait_for_restnoded == 1 } {
-                        after 3000
-                    }
-
-                    return $install_location
+                    return $install_prefix
                 }
 
                 proc url_init {} {
@@ -298,17 +253,32 @@ sys application template /Common/f5.service_discovery {
                     return [subst -nocommand $string]
                 }
 
-                proc store_secret { secret salt_string } {
-                    set salt [exec echo -n $salt_string | /usr/bin/openssl dgst -sha512 -binary | /usr/bin/xxd -p -c 128]
-                    set post_body "{\"operation\": \"ENCRYPT\", \"data\": $secret, \"salt\": \"$salt\"}"
-                    set response [exec /usr/bin/curl -sku admin: -X POST -H "Content-Type: application/json" -d $post_body http://localhost:8100/shared/restricted-store/crypto]
-                    return [exec echo $response | /usr/bin/jq -r .id]
+                proc encrypt { data cloud_libs_base_dir } {
+                    append out_file /tmp/sd_creds_ [expr { int(rand() * 1000) }]
+                    exec /usr/bin/f5-rest-node $cloud_libs_base_dir/node_modules/@f5devcentral/f5-cloud-libs/scripts/encryptDataToFile --data $data --private-key-name serviceDiscoveryKey --out-file $out_file --symmetric
+
+                    set fp [open $out_file r]
+                    set encrypted [read $fp]
+                    close $fp
+                    exec rm $out_file
+
+                    return $encrypted
+                }
+
+                proc get_encrypt_provider_options { encrypted } {
+                    append options secretData:[exec echo $encrypted | jq -r .encryptedData],
+                    append options secretIv:[exec echo $encrypted | jq -r .iv],
+                    append options secretKey:[exec echo $encrypted | jq -r .encryptedKey],
+                    append options secretPrivateKeyName:[exec echo $encrypted | jq -r .privateKey.name],
+                    append options secretPrivateKeyFolder:[exec echo $encrypted | jq -r .privateKey.folder]
                 }
 
                 iapp::template start
 
-                set cloud_libs_base_dir [install_dependencies]
+                set cloud_libs_base_dir [install_dependencies $::cloud__cloud_provider]
                 url_init
+
+                exec /bin/mkdir -p /var/log/cloud/service_discovery
 
                 # constants
                 set YES_ANSWER "yes"
@@ -372,29 +342,80 @@ sys application template /Common/f5.service_discovery {
                 # array keys: $new_pool,tcp
                 array set pool {
                     1,tcp { pool [iapp::conf create ltm pool ${app}_pool \
-                               [iapp::substa pool_lb_method($advanced,$lb_lcm_licensed)] \
-                               [iapp::substa monitor_arr($new_pool,$new_monitor)] ] }
+                                 [iapp::substa pool_lb_method($advanced,$lb_lcm_licensed)] \
+                                 [iapp::substa monitor_arr($new_pool,$new_monitor)] ] }
 
                     *     { pool $::pool__pool_to_use }
                 }
 
                 iapp::substa pool($new_pool,tcp)
 
+                if { [iapp::is ::cloud__aws_bigip_in_ec2 $YES_ANSWER] } {
+                    set ::cloud__aws_access_key_id $DEFAULT_ANSWER
+                    set ::cloud__aws_secret_access_key $DEFAULT_ANSWER
+                }
+
+                if { [iapp::is ::cloud__gce_bigip_in_gc $YES_ANSWER] } {
+                    set ::cloud__gce_credentials_json_base64 $DEFAULT_ANSWER
+                }
+
+                if { [iapp::is ::cloud__aws_use_role $NO_ANSWER] } {
+                    set ::cloud__aws_role_arn $DEFAULT_ANSWER
+                    set ::cloud__aws_external_id $DEFAULT_ANSWER
+                }
+
+                switch $::cloud__cloud_provider {
+                    aws {
+                        append provider_options roleArn=$::cloud__aws_role_arn,
+                        append provider_options externalId=$::cloud__aws_external_id,
+
+                        if { [iapp::is ::cloud__aws_bigip_in_ec2 $NO_ANSWER] } {
+                            set encrypted [encrypt $::cloud__aws_secret_access_key $cloud_libs_base_dir]
+
+                            append provider_options region:$::cloud__aws_region_req,
+                            append provider_options accessKeyId:$::cloud__aws_access_key_id,
+                            append provider_options [get_encrypt_provider_options $encrypted]
+
+                        } else {
+                            append provider_options region:$::cloud__aws_region
+                        }
+                    }
+                    azure {
+                        set encrypted [encrypt $::cloud__azure_sp_secret $cloud_libs_base_dir]
+
+                        append provider_options resourceGroup:$::cloud__azure_resource_group,
+                        append provider_options subscriptionId:$::cloud__azure_subscription_id,
+                        append provider_options clientId:$::cloud__azure_client_id,
+                        append provider_options tenantId:$::cloud__azure_tenant_id,
+                        append provider_options [get_encrypt_provider_options $encrypted]
+                    }
+                    gce {
+                        if { [iapp::is ::cloud__gce_bigip_in_gc $NO_ANSWER] } {
+                            set encrypted [encrypt $::cloud__gce_credentials_json_base64 $cloud_libs_base_dir]
+
+                            append provider_options region:$::cloud__gce_region_req,
+                            append provider_options [get_encrypt_provider_options $encrypted]
+                        } else {
+                            append provider_options region:$::cloud__gce_region
+                        }
+                    }
+                }
+
                 set icall_script {
                     if { [catch {
+                        # We might be in a cluster and on a BIG-IP that doesn't yet have the code,
+                        # so if we don't have it, re-deploy so that the code will be installed
+
+                        if { ![file isdirectory <CLOUD_LIBS_BASE_DIR>] } {
+                            exec /usr/bin/tmsh -c "modify sys application service <APP_NAME> \{ execute-action definition \}"
+                        }
+
                         tmsh::modify sys application service <APP_NAME> strict-updates disabled
                         set mgmt_port [tmsh::get_config sys httpd ssl-port]
                         set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
 
-                        # check that the nodes worker is available (it might not be at boot time)
-                        set available [exec /bin/bash -c "/usr/bin/curl -sku admin: --max-time 30 https://localhost:$mgmt_port/mgmt/shared/cloud/nodes/available"]
-                        if { $available ne "{}" } {
-                            puts "Service Discovery: nodes worker not yet available"
-                            exit
-                        }
-
-                        set members [exec /bin/bash -c "NODE_JSON=\$(/usr/bin/curl -sku admin: --max-time 30 https://localhost:$mgmt_port/mgmt/shared/cloud/nodes?cloudLibsBaseDir=<CLOUD_LIBS_BASE_DIR>\\&mgmtPort=$mgmt_port\\&cloud=<CLOUD>\\&memberTag=<MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE>\\&memberAddressType=<ADDRESS_TYPE>\\&memberPort=<MEMBER_PORT>\\&providerOptions=<PROVIDER_OPTIONS>);
-                            echo \$NODE_JSON | /usr/bin/jq -r 'if type == \"array\" then \[.\[\] | \"\\(.ip):<MEMBER_PORT> { address \\(.ip) description \\(.id) connection-limit <CONNECTION_LIMIT> }\"\]  | join (\" \") elif has(\"code\") then error(\"error from node worker: \" + .message) else error(\"unxpected response from node worker\") end'"]
+                        set members [exec /bin/bash -c "NODE_JSON=\$(/usr/bin/f5-rest-node <CLOUD_LIBS_BASE_DIR>/node_modules/@f5devcentral/f5-cloud-libs/scripts/getNodes.js --cloud <CLOUD> --provider-options '<PROVIDER_OPTIONS>' --member-tag <MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE> --member-address-type <ADDRESS_TYPE> --output /var/log/cloud/service_discovery/get_nodes.log);
+                            echo \$NODE_JSON | /usr/bin/jq -r 'if type == \"array\" then \[.\[\] | \"\\(.ip):<MEMBER_PORT> { address \\(.ip) description \\(.id) connection-limit <CONNECTION_LIMIT> }\"\]  | join (\" \") elif has(\"code\") then error(\"error from getNodes: \" + .message) else error(\"unxpected response from getNodes\") end'"]
 
                         if { $members eq "" } {
                             puts "Service Discovery: No matching members found"
@@ -409,14 +430,9 @@ sys application template /Common/f5.service_discovery {
                     }
                 }
 
-                if { [iapp::is ::cloud__aws_use_role $NO_ANSWER] } {
-                    set ::cloud__aws_role_arn $DEFAULT_ANSWER
-                    set ::cloud__aws_external_id $DEFAULT_ANSWER
-                }
-
                 set common_script_map "
                     <CLOUD>               $::cloud__cloud_provider
-                    <CLOUD_LIBS_BASE_DIR> [url_encode $cloud_libs_base_dir]
+                    <CLOUD_LIBS_BASE_DIR> $cloud_libs_base_dir
                     <APP_NAME>            /${partition}/${app}.app/${app}
                     <POOL_TO_USE>         $pool_name
                     <MEMBER_PORT>         $::pool__member_port
@@ -425,23 +441,6 @@ sys application template /Common/f5.service_discovery {
                     <MEMBER_TAG_VALUE>    $::pool__tag_value
                     <ADDRESS_TYPE>        $::pool__public_private
                 "
-
-                switch $::cloud__cloud_provider {
-                    aws {
-                        set provider_options [url_encode roleArn=$::cloud__aws_role_arn,externalId=$::cloud__aws_external_id,region=$::cloud__aws_region]
-                    }
-                    azure {
-                        set data ""
-                        append data "{\"servicePrincipalSecret\":"
-                        append data \"$::cloud__azure_sp_secret\"
-                        append data "}"
-                        set secret_id [store_secret $data $::cloud__azure_client_id+$::cloud__azure_tenant_id]
-                        set provider_options [url_encode resourceGroup=$::cloud__azure_resource_group,subscriptionId=$::cloud__azure_subscription_id,clientId=$::cloud__azure_client_id,tenantId=$::cloud__azure_tenant_id,secretId=$secret_id]
-                    }
-                    gce {
-                        set provider_options [url_encode region=$::cloud__gce_region]
-                    }
-                }
 
                 set provider_script_map "
                     <PROVIDER_OPTIONS>  $provider_options
@@ -497,7 +496,18 @@ sys application template /Common/f5.service_discovery {
                         }
 
                     optional ( cloud_provider == "aws" ) {
-                        choice aws_region display "xxlarge"
+                        choice aws_bigip_in_ec2 default "yes" display "xxlarge"
+                            optional ( basic.display_help == "max" ) {
+                                message aws_bigip_in_ec2_help
+                            }
+                        optional ( aws_bigip_in_ec2 == "no" ) {
+                            string aws_access_key_id required display "xxlarge"
+                            password aws_secret_access_key required display "xxlarge"
+                            choice aws_region_req display "xxlarge"
+                        }
+                        optional ( aws_bigip_in_ec2 == "yes" ) {
+                            choice aws_region display "xxlarge"
+                        }
                         optional ( basic.display_help == "max" ) {
                             message aws_region_help
                         }
@@ -517,17 +527,27 @@ sys application template /Common/f5.service_discovery {
                          optional ( basic.display_help == "max" ) {
                             message azure_resource_group_help
                         }
-                         string azure_subscription_id required display "xxlarge"
-                         string azure_tenant_id required display "xxlarge"
-                         string azure_client_id required display "xxlarge"
-                         password azure_sp_secret required display "xxlarge"
-                         optional ( basic.display_help == "max" ) {
-                            message azure_auth_help
+                        string azure_subscription_id required display "xxlarge"
+                        string azure_tenant_id required display "xxlarge"
+                        string azure_client_id required display "xxlarge"
+                        password azure_sp_secret required display "xxlarge"
+                        optional ( basic.display_help == "max" ) {
+                             message azure_auth_help
                         }
                     }
 
                     optional ( cloud_provider == "gce" ) {
-                        choice gce_region display "xxlarge"
+                        choice gce_bigip_in_gc default "yes" display "xxlarge"
+                            optional ( basic.display_help == "max" ) {
+                                message gce_bigip_in_gc_help
+                            }
+                        optional ( gce_bigip_in_gc == "no" ) {
+                            password gce_credentials_json_base64 required display "xxlarge"
+                            choice gce_region_req display "xxlarge"
+                        }
+                        optional ( gce_bigip_in_gc == "yes" ) {
+                            choice gce_region display "xxlarge"
+                        }
                         optional ( basic.display_help == "max" ) {
                             message gce_region_help
                         }
@@ -650,14 +670,22 @@ sys application template /Common/f5.service_discovery {
                     }
 
                     cloud "Cloud Provider"
-                    cloud.cloud_provider "In which cloud provider is this BIG-IP deployed?" {
+                    cloud.cloud_provider "In which cloud provider are the pool members deployed?" {
                         "AWS EC2" => "aws",
                         "Azure" => "azure",
                         "Google Compute Engine" => "gce"
                     }
                     cloud.cloud_provider_help "" "Select the cloud in which the BIG-IP VE (Virtual Edition) you are configuring is running."
 
-                    cloud.aws_region "Which region do you want to search?" {
+                    cloud.aws_bigip_in_ec2 "Is your BIG-IP running in EC2?" {
+                        "Yes" => "yes",
+                        "No" => "no"
+                    }
+                    cloud.aws_bigip_in_ec2_help "" "If the BIG-IP is not running in EC2, we need to collect credentials."
+                    cloud.aws_access_key_id "What is your AWS acess key id?"
+                    cloud.aws_secret_access_key "What is your AWS secret access key?"
+
+                    cloud.aws_region "Which region do you want to search for pool members?" {
                         "Default" => "/#default#",
                         "US East (N. Virginia)" => "us-east-1",
                         "US East (Ohio)" => "us-east-2",
@@ -674,7 +702,23 @@ sys application template /Common/f5.service_discovery {
                         "Asia Pacific (Mumbai)" => "ap-south-1",
                         "South America (São Paulo)" => "sa-east-1"
                     }
-                    cloud.aws_region_help "" "Default is to search the same region in which the BIG-IP is running."
+                    cloud.aws_region_req "Which region do you want to search for pool members?" {
+                        "US East (N. Virginia)" => "us-east-1",
+                        "US East (Ohio)" => "us-east-2",
+                        "US West (N. California)" => "us-west-1",
+                        "US West (Oregon)" => "us-west-2",
+                        "Canada (Central)" => "ca-central-1",
+                        "EU (Ireland)" => "eu-west-1",
+                        "EU (Frankfurt)" => "eu-central-1",
+                        "EU (London)" => "eu-west-2",
+                        "Asia Pacific (Tokyo)" => "ap-northeast-1",
+                        "Asia Pacific (Seoul)" => "ap-northeast-2",
+                        "Asia Pacific (Singapore)" => "ap-southeast-1",
+                        "Asia Pacific (Sydney)" => "ap-southeast-2",
+                        "Asia Pacific (Mumbai)" => "ap-south-1",
+                        "South America (São Paulo)" => "sa-east-1"
+                    }
+                    cloud.aws_region_help "" "Default is to search the same region in which the BIG-IP is running. If the BIG-IP is not running in EC2, you must select a region"
                     cloud.aws_use_role "Do you want to assume a role?" {
                         "Yes" => "yes",
                         "No" => "no"
@@ -691,8 +735,27 @@ sys application template /Common/f5.service_discovery {
                     cloud.azure_resource_group "What is the Azure resource group?"
                     cloud.azure_resource_group_help "" "Type the name of the Azure resource group containing the tagged resources."
 
+                    cloud.gce_bigip_in_gc "Is your BIG-IP running in Google Cloud?" {
+                        "Yes" => "yes",
+                        "No" => "no"
+                    }
+                    cloud.gce_bigip_in_gc_help "" "If the BIG-IP is not running in Google Cloud, we need to collect credentials."
+                    cloud.gce_credentials_json_base64 "Enter the Base64 encoded credentials json"
                     cloud.gce_region "Which region do you want to search?" {
                         "Default" => "/#default#",
+                        "US East 1" => "us-east1",
+                        "US East 4" => "us-east4",
+                        "US Central 1" => "us-central-1",
+                        "US West 1" => "us-west1",
+                        "Europe West 1" => "eu-west1",
+                        "Europe West 2" => "eu-west2",
+                        "Europe West 3" => "eu-west3",
+                        "Asia Northeast 1" => "asia-northeast1",
+                        "Asia East 1" => "asia-east1",
+                        "Asia Southeast 1" => "asia-southeast1",
+                        "Australia Southeast 1" => "australia-southeast1"
+                    }
+                    cloud.gce_region_req "Which region do you want to search?" {
                         "US East 1" => "us-east1",
                         "US East 4" => "us-east4",
                         "US Central 1" => "us-central-1",
@@ -754,5 +817,4 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature none
 }
