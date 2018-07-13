@@ -167,6 +167,11 @@ sys application template /Common/f5.service_discovery {
                 proc install_dependencies { cloud_provider } {
                     puts "Checking dependencies"
 
+                    upvar 1 cloud_libs_min_version cloud_libs_min_version
+                    upvar 1 aws_provider_min_version aws_provider_min_version
+                    upvar 1 azure_provider_min_version azure_provider_min_version
+                    upvar 1 gce_provider_min_version gce_provider_min_version
+
                     set common_install_prefix /config/cloud
                     set template_install_prefix $common_install_prefix/$cloud_provider
                     set sd_install_prefix $common_install_prefix/iapps/service_discovery
@@ -817,5 +822,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature ouVeWRss13ZHVhANx0MVPcUKf9H6IUbiYp+LFqM3DV6s4bBGUDQ//rpBD/j/gagxmMhN/vgdcvjU/ebxrLPvsQMtqVnafaMM5Ske3YIS2eU3AIjVffkh9P/WmInw1mLWRzXkGFdGjR+klDIzUJ3Cyv4SCjYNsSeWNYk8+s8F1S3tKSc0SqzGfGfAaHHIWZTHEYwdWSaNWvRvaQd6u+emT8Rdfs5tXfROS70vc2rtIN8BSVqGwoMepJ7RQiHBFsppY7vLn/Qujoh8HHm1VpfnyrglnVoGS9OHA0y7bPsfUbbPsDpOaMVQ6iHaofm/l3LMi+XUvjgJD9V+a+HCn28c5A==
+    tmpl-signature eeBM2IsxLz6NlDABrBtd76h0s3L/9Av1I5TrNficfeTJ4vog7FCMa/yG5Vrb3OK+QTBgMp+PhED5Ri1NCZJvJK95n6wKu2NY1TgoH87e4Z7hI1ADgt3Dsj+dD8ZIsWNhyV6VjeL2enw/WUCDGFP+AFqAUh7R1HlyMsNbUEyVIt88ZhYv/OQbyYiZDrrJK25FphS4o2294k149qXGqtlkm5LDJVZrn6npzxiTsslCJSUbGqZI8R+8rqocup1rWuezWoEHSNEhpIYSCtC8JQY6brdridmS6d2LHhZeqhH6BkhB3+hQHtRjEjNpK4chqik/kI5EbO5st7nlVFDkZvQ8wg==
 }
