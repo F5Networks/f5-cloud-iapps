@@ -21,10 +21,10 @@ sys application template /Common/f5.service_discovery {
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) 8122408b7df1f9cf6f18fc3bc5ccfdfd01a5ed849213d1aa0ebf85a61339a1acec90f9370c00265436b223f0008aa1f86cedda3096fe0107a8e930fbcbc5fd41
-                        set hashes(f5-cloud-libs-aws.tar.gz) 9263a6a2b2461f48840a1612bf9e0fe0e4fec171e9748347baaba61bd23b76977378e202093e3d0a0e8711d9e8259cdfe433ff71168c1b7e94add35e057b9d5a
-                        set hashes(f5-cloud-libs-azure.tar.gz) 3847572a43446e49b08c105baaca18fe4bc5b1990178ea0220d8272da916bb67501e0ea8bae3f250e950944428fe9fd24c9ac5770ffd781b380c2cfc366eaef1
-                        set hashes(f5-cloud-libs-gce.tar.gz) 8026a360d266dde45828da95c7c1981e953e46720d4d4a871c642952f3554791e8d2e519472c505c0809ca07a0e22c5e2445a37c1470ff8b52f8e70c15a46f23
+                        set hashes(f5-cloud-libs.tar.gz) 8f401c7d8fda8f50b78db5b61f002653a05f59bdd4bd8f54711dda01933c1042c204b285b4617eca45e71676da3865233687f9b27ab2bafa1072cbba2513b8e2
+                        set hashes(f5-cloud-libs-aws.tar.gz) da3cab163e7a070237443159fe7440b30e1ccff922442634758c7cf9d48f7343fb401be79cae717d44b74cdc43d42b11daac8e9462f05e0321f9de338617f30c
+                        set hashes(f5-cloud-libs-azure.tar.gz) 8751e26b785baa5f8492836285cb05989d160c4c23b1bf545204391aec05f1fee82e0bc12333fd542ae7dc05c70bbce56bb99287b694c1608167377ec3b9b2c4
+                        set hashes(f5-cloud-libs-gce.tar.gz) 67e9fef439851ad4f9fbaf3f3574dadb2fceea0b13a77ccde41bcf31c42f87d6c37c64d50d685fc9a90acedc8c80abee9114b9a232809f36746bdc8e1de1b22a
 
                         set file_name [file tail $file_path]
 
@@ -817,4 +817,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
+    tmpl-signature ouVeWRss13ZHVhANx0MVPcUKf9H6IUbiYp+LFqM3DV6s4bBGUDQ//rpBD/j/gagxmMhN/vgdcvjU/ebxrLPvsQMtqVnafaMM5Ske3YIS2eU3AIjVffkh9P/WmInw1mLWRzXkGFdGjR+klDIzUJ3Cyv4SCjYNsSeWNYk8+s8F1S3tKSc0SqzGfGfAaHHIWZTHEYwdWSaNWvRvaQd6u+emT8Rdfs5tXfROS70vc2rtIN8BSVqGwoMepJ7RQiHBFsppY7vLn/Qujoh8HHm1VpfnyrglnVoGS9OHA0y7bPsfUbbPsDpOaMVQ6iHaofm/l3LMi+XUvjgJD9V+a+HCn28c5A==
 }
