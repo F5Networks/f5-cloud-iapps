@@ -21,9 +21,9 @@ sys application template /Common/f5.service_discovery {
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) 8f401c7d8fda8f50b78db5b61f002653a05f59bdd4bd8f54711dda01933c1042c204b285b4617eca45e71676da3865233687f9b27ab2bafa1072cbba2513b8e2
-                        set hashes(f5-cloud-libs-aws.tar.gz) da3cab163e7a070237443159fe7440b30e1ccff922442634758c7cf9d48f7343fb401be79cae717d44b74cdc43d42b11daac8e9462f05e0321f9de338617f30c
-                        set hashes(f5-cloud-libs-azure.tar.gz) 8751e26b785baa5f8492836285cb05989d160c4c23b1bf545204391aec05f1fee82e0bc12333fd542ae7dc05c70bbce56bb99287b694c1608167377ec3b9b2c4
+                        set hashes(f5-cloud-libs.tar.gz) 8562c1a28825012c1920df71d81e36d5ef5810ab9c3db7262b49eddb81b5fe1d9c27319fd02515e9875171d0a88df00055b3f179fcd072de247f7ec496fe9654
+                        set hashes(f5-cloud-libs-aws.tar.gz) 6fe531dfe013ba3e6e59576d8da7adf4e02c958e8ce8206c8f8a203996a4a1d60c43fa7ff55aa9a76eb53b62141cfca2e5622c555ffe94b981459f1f6cbdfbc0
+                        set hashes(f5-cloud-libs-azure.tar.gz) d5e2e26f92f61f3917d8212b71fee55e9f58811ee488137e9c28ac54e5eb2434725696af286839e8b5ea68e05078188e0ada6e215c6c233d2585fd2acca0532d
                         set hashes(f5-cloud-libs-gce.tar.gz) 67e9fef439851ad4f9fbaf3f3574dadb2fceea0b13a77ccde41bcf31c42f87d6c37c64d50d685fc9a90acedc8c80abee9114b9a232809f36746bdc8e1de1b22a
 
                         set file_name [file tail $file_path]
@@ -192,8 +192,8 @@ sys application template /Common/f5.service_discovery {
 
                     set cloud_libs_tag release-$cloud_libs_min_version
                     set provider_tag release-$provider_min_version
-#                    set cloud_libs_tag v$cloud_libs_min_version
-#                    set provider_tag v$provider_min_version
+#                    set cloud_libs_tag v$cloud_libs_min_version-1
+#                    set provider_tag v$provider_min_version-1
 
                     # each element in list is a list of 'location_to_search min_acceptable_version download_url'
                     set dependencies [list \
@@ -822,5 +822,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature eeBM2IsxLz6NlDABrBtd76h0s3L/9Av1I5TrNficfeTJ4vog7FCMa/yG5Vrb3OK+QTBgMp+PhED5Ri1NCZJvJK95n6wKu2NY1TgoH87e4Z7hI1ADgt3Dsj+dD8ZIsWNhyV6VjeL2enw/WUCDGFP+AFqAUh7R1HlyMsNbUEyVIt88ZhYv/OQbyYiZDrrJK25FphS4o2294k149qXGqtlkm5LDJVZrn6npzxiTsslCJSUbGqZI8R+8rqocup1rWuezWoEHSNEhpIYSCtC8JQY6brdridmS6d2LHhZeqhH6BkhB3+hQHtRjEjNpK4chqik/kI5EbO5st7nlVFDkZvQ8wg==
+    tmpl-signature K473/oA7p5d1xHOSQyCg99pV7YF3SxtEueHRxXIpcZ2Tm0Q7tZN6qrumhfXI0QaOYXMZA6mSppaF/HWQejWVqdmrao9g+lwL/4FWdfmgoPRtJ5/okKvh6sj8GwP9fVOLxLBXqx/tajlVn4z55vYlGJS8J6UWNAAPLGTWXJurXzFCIB00ek10YQivaan5lzo7+8iipfnUIqL1lIwptRePLDGJH0jWLc1lGeGRieC6F5HpG3f9cwlh3Zk8dLaK2omTacqn083Q6Tu9tGgwFhEM5xsncApe9j6I9omv9fe0CzwgKg/ZYFqA5hXeG6O8LEitt9drmVK0uck/joC8n2mkrA==
 }
