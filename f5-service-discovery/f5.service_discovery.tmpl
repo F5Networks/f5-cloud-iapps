@@ -190,10 +190,10 @@ sys application template /Common/f5.service_discovery {
                         }
                     }
 
-                    set cloud_libs_tag release-$cloud_libs_min_version
-                    set provider_tag release-$provider_min_version
-#                    set cloud_libs_tag v$cloud_libs_min_version-1
-#                    set provider_tag v$provider_min_version-1
+                    set cloud_libs_tag release-$cloud_libs_min_version-1
+                    set provider_tag release-$provider_min_version-1
+#                    set cloud_libs_tag v$cloud_libs_min_version
+#                    set provider_tag v$provider_min_version
 
                     # each element in list is a list of 'location_to_search min_acceptable_version download_url'
                     set dependencies [list \
@@ -822,5 +822,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature K473/oA7p5d1xHOSQyCg99pV7YF3SxtEueHRxXIpcZ2Tm0Q7tZN6qrumhfXI0QaOYXMZA6mSppaF/HWQejWVqdmrao9g+lwL/4FWdfmgoPRtJ5/okKvh6sj8GwP9fVOLxLBXqx/tajlVn4z55vYlGJS8J6UWNAAPLGTWXJurXzFCIB00ek10YQivaan5lzo7+8iipfnUIqL1lIwptRePLDGJH0jWLc1lGeGRieC6F5HpG3f9cwlh3Zk8dLaK2omTacqn083Q6Tu9tGgwFhEM5xsncApe9j6I9omv9fe0CzwgKg/ZYFqA5hXeG6O8LEitt9drmVK0uck/joC8n2mkrA==
+    tmpl-signature dNl80DjIjxB0XwQRCp7hDFHb3e20kxU5AW6zH9rNsGADdo6kS7Oml13FbMmDaXud5MbZu5bMVUN49OujHhgig+3ZZq7W26228Xv4ZqFlVNTRlrRfLBfU/I/OV2yB2cAD1t7YiQFDH9/9oOpVJHQml7Ht1u3I4M9iZi6REG7FZyGm/dsjvWkNMRUmzptjo7qlJxOhVSo3X3mtn6/j8y44LSXc0eNEzQjYpXAGuKEf/bEQDnigrUELBz63RaAoBbz8QFbjMmKrOjcBBG8H69aZxzweHWLJbOPpc5cV3N/By5dRvT8w0vWXbbO8BQ/PHkKfI/e4xti69wA/65XyK2J/RA==
 }
