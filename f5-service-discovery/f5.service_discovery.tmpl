@@ -141,10 +141,10 @@ sys application template /Common/f5.service_discovery {
                         } else {
                             # check to see if a recent enough version is installed
 
-                            if { [file exists $path] } {
-                                set path_to_check $path
-                            } else {
+                            if { [file exists $sd_path] } {
                                 set path_to_check $sd_path
+                            } else {
+                                set path_to_check $path
                             }
 
                             set installed_version [get_installed_version $path_to_check $file_name]
@@ -190,10 +190,8 @@ sys application template /Common/f5.service_discovery {
                         }
                     }
 
-                    set cloud_libs_tag release-$cloud_libs_min_version-2
-                    set provider_tag release-$provider_min_version-1
-#                    set cloud_libs_tag v$cloud_libs_min_version
-#                    set provider_tag v$provider_min_version
+                    set cloud_libs_tag v$cloud_libs_min_version
+                    set provider_tag v$provider_min_version
 
                     # each element in list is a list of 'location_to_search min_acceptable_version download_url'
                     set dependencies [list \
@@ -229,35 +227,6 @@ sys application template /Common/f5.service_discovery {
                     return $install_prefix
                 }
 
-                proc url_init {} {
-                    variable url_map
-                    variable url_alphanumeric a-zA-Z0-9
-                    for {set i 0} {$i <= 256} {incr i} {
-                        set c [format %c $i]
-                        if {![string match \[$url_alphanumeric\] $c]} {
-                            set url_map($c) %[format %.2x $i]
-                        }
-                    }
-                    # These are handled specially
-                    array set url_map { " " + \n %0d%0a }
-                }
-
-                proc url_encode { string } {
-                    variable url_map
-                    variable url_alphanumeric
-
-                    # The spec says: "non-alphanumeric characters are replaced by '%HH'"
-                    # 1 leave alphanumerics characters alone
-                    # 2 Convert every other character to an array lookup
-                    # 3 Escape constructs that are "special" to the tcl parser
-                    # 4 "subst" the result, doing all the array substitutions
-
-                    regsub -all \[^$url_alphanumeric\] $string {$url_map(&)} string
-                    # This quotes cases like $url_map([) or $url_map($) => $url_map(\[) ...
-                    regsub -all {[][{})\\]\)} $string {\\&} string
-                    return [subst -nocommand $string]
-                }
-
                 proc encrypt { data cloud_libs_base_dir } {
                     append out_file /tmp/sd_creds_ [expr { int(rand() * 1000) }]
                     exec /usr/bin/f5-rest-node $cloud_libs_base_dir/node_modules/@f5devcentral/f5-cloud-libs/scripts/encryptDataToFile --data $data --private-key-name serviceDiscoveryKey --out-file $out_file --symmetric
@@ -281,7 +250,6 @@ sys application template /Common/f5.service_discovery {
                 iapp::template start
 
                 set cloud_libs_base_dir [install_dependencies $::cloud__cloud_provider]
-                url_init
 
                 exec /bin/mkdir -p /var/log/cloud/service_discovery
 
@@ -453,7 +421,7 @@ sys application template /Common/f5.service_discovery {
 
                 set mapped_script [string map $common_script_map $icall_script]
                 set mapped_script [string map $provider_script_map $mapped_script]
-                set mapped_script [regsub -all [url_encode $DEFAULT_ANSWER] $mapped_script '']
+                set mapped_script [regsub -all $DEFAULT_ANSWER $mapped_script '']
                 iapp::conf create sys icall script ${app}_service_discovery_icall_script \{ definition \{ $mapped_script \} description none events none \}
                 iapp::conf create sys icall handler periodic ${app}_service_discover_icall_handler \{ first-occurrence now interval $::pool__interval script ${app}_service_discovery_icall_script \}
 
@@ -822,5 +790,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature NhnGdJoevn31A9LKzdE0NWWHPbXSHuPaQsoaVgolNwpxztmAZZwHNvV1OrIMZ+bXxh1HVHDih4AjV7RvihXLJMDsRlapjJgfLuse6KDNfdrF7SCOcjkvYeRvSsNH51VLgxZl7V7l2W4KPWvSDWZsIsqjBpZuuYs5z7ugIzeC6Q1S8w9VsL00tqIDvH8DJ2QKLFFuvWFzKGJt9+VJ3kkNjszmQ0tX/1Vkd1P5l0yxV4SokXXejQbi9D8Vs9b1LaemomeAVP2wIWgts94McxRy9H9VGWWjSMfbmwPqal1/2CL6FUoq7JpSfKRMqn+ErXI9EoEYlsi++87GLbGoIPVD8A==
+    tmpl-signature iXkD1ykjCtUkr/hbHcQGtFtVrvq6pQGRJkS43WIgajV9R1272IHnu7Ky6XfmQLccCxISg13eGVZfyCRpJAJhS8DqtX+1zJpMllJjX8HSWttAZ/PdXZdoZfLDqbALGMxM1j1NFYZnd6h0Z4znL1ow+havxeZnPp9ad+Xfz92gw+zyFLelLbU09FLcVnApzSCMNdqoW6HQqUQxbyuQHAmHbgt8lQnjViWoKWtYMa+v6sLOMa5v+5JIXOrVEvTmv1a999E/Z4FWq/PuJ0FHat/JNyxcm8sM0Hg3gVMGLxQLhq8IEHg1pAjGt4vVtoYNoUuZF35K44Cs/OmkYcuLtthltQ==
 }
