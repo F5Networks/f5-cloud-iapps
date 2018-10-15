@@ -546,7 +546,7 @@ when HTTP_REQUEST {
 	}
 	# Keys: $asm_log_choice
 	array set asm_log_arr {
-		1 { application replace-all-with \{ ${app}_remote_logging \{ local-storage disabled filter replace-all-with \{ protocol \{ values replace-all-with \{ all \} \} request-type \{ values replace-all-with \{ [iapp::substa asm_log_req_arr($::logging_config__asm_log_level)] \} \} search-all \{ \} \} maximum-entry-length 10k remote-storage splunk servers replace-all-with \{ 255.255.255.254:${format_vs_port} \{ \} \} \} \} }
+		1 { application replace-all-with \{ ${app}_remote_logging \{ filter replace-all-with \{ protocol \{ values replace-all-with \{ all \} \} request-type \{ values replace-all-with \{ [iapp::substa asm_log_req_arr($::logging_config__asm_log_level)] \} \} search-all \{ \} \} maximum-entry-length 10k remote-storage splunk servers replace-all-with \{ 255.255.255.254:${format_vs_port} \{ \} \} \} \} }
 		* { }
 	}
 	# Keys: $dos_logs
@@ -916,5 +916,5 @@ text {
     requires-modules none
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature FITSLVvZU20ULdGG58SkM5RkcmYPgPKLs1YrDp3Um8xqIr34M6k1o9nDwzaG+BLKxUei2E7FC3pcCAQvfjWJ9QGLI2yLZ7v37zGYgcb4jYc9mMP2D7EtrFc9e+SmUvIOsW47aIm4kyyA8dPfSMDgW+wQPRdjOHuP+1TBb+u4DFavZReobssqyQGuY5dZYVlVSl6rYck5JiDV/pnJ7PEsaSD5M7ytk886vixka3KQRGtW9gbY3IBMJHHz+VOz0sbCREx6Lhf2ov9PPLaHAy4/1DKZ6KPs4GlJN9JB4c7zv52MYsS+A+mS7T6my2XWqKFk5SHo4MWxzg+2OB62kBPR+w==
+    tmpl-signature rgttJ32BNg3+d5KylMvKfEWlhClib1WtP1RtUO3doQBcewl3vP7323ODP1cIb6OrQM537N9xo4yyaLJinEzmlhzErcLYKyCZpR4ODVofPT66mLeziSpJoZn7s0vlYZ0tv09Es4aOj7cTx/An5v4xTVTahpXQnjXkgeVeiKi6CHVTA0cIlc53U/+LNGHiRc8FegC2pZlUkInyAzZu22du/ESzYz5tjHIsEDDWf9/P5RGvjnhogFN/AeFk71HjF4IkGUVZfy0UZOWaeGM2ezNW07x/ofvItduIPeIHrJEPZhFopGbCGKaS0I0s6GQ8GWtUrxOa/jAU40w7mR+T8lLNSA==
 }
