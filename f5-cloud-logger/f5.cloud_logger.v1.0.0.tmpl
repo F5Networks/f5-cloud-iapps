@@ -269,6 +269,7 @@ when HTTP_REQUEST {
 	set app $tmsh::app_name
 	set dynamic_mgmt_port [tmsh::get_field_value [lindex [tmsh::get_config "sys httpd ssl-port"] 0] "ssl-port"]
 	set is_v13_0 [iapp::tmos_version >= 13.0]
+	set is_v14_0 [iapp::tmos_version >= 14.0]
 	set path [tmsh::pwd]
 
 
@@ -303,6 +304,7 @@ when HTTP_REQUEST {
 	set cred_vs_port [expr { $format_vs_port + 2 }]
 	set log_level [expr { [iapp::is ::basic__advanced yes] && [info exists ::internal_config__irule_log_level] ? "$::internal_config__irule_log_level" : "2" }]
 	set remediation_link [expr { $is_v13_0 ? {https://${mgmt_hostname}:${mgmt_port}/dms/policy/requests_ng.php?popup\=1&supportId\=${supportid}} : {https://${mgmt_hostname}:${mgmt_port}/dms/policy/win_open_proxy_request.php?id\=&support_id\=${supportid}} }]
+	set crypto_key_name "${app}_send_vs_cert"
 	# Azure OMS Variables
 	set workspace [expr { [info exists ::analytics_config__workspace] ? "$::analytics_config__workspace" : "none" }]
 	set log_type [expr { [info exists ::analytics_config__log_type] ? "$::analytics_config__log_type" : "F5CustomLogs" }]
@@ -313,7 +315,7 @@ when HTTP_REQUEST {
 	set s3_bucket_name [expr { [info exists ::analytics_config__s3_bucket_name] ? "$::analytics_config__s3_bucket_name" : "S3Bucket" }]
 
 	# create SSL cert for logging virtual server SSL
-	catch { tmsh_exe "create sys crypto key ${app}_send_vs_cert gen-certificate common-name Cloud_Analytics_Logging country US lifetime 3650" }
+	catch { tmsh_exe "create sys crypto key $crypto_key_name gen-certificate common-name Cloud_Analytics_Logging country US lifetime 3650" }
 
 	## Account for uniqueness in the iRule(s) based on which analytics solution it is using
 	# Keys: $analytics_solution
@@ -493,7 +495,8 @@ when HTTP_REQUEST {
 	# Create https credential monitor
 	iapp::conf create ltm monitor https ${app}_credential_mon defaults-from https username user password [iapp::make_safe_password [string trim $secret_key]] send 'GET /credentials \\r\\n' interval 30 timeout 61
 	# Create credential client SSL profile
-	iapp::conf create ltm profile client-ssl ${app}_cred_cssl \{ defaults-from clientssl \}
+	# Note: Statically referencing default cert/key, if cert/key not specified during create of client-ssl profile on v14.x it will throw an error on reconfigure
+	iapp::conf create ltm profile client-ssl ${app}_cred_cssl cert default.crt key default.key defaults-from clientssl
 	# Create credential pool
 	iapp::conf create ltm pool ${app}_cred_pool \{ members replace-all-with \{ 255.255.255.254:${cred_vs_port} \{ address 255.255.255.254 \} \} monitor ${app}_credential_mon \}
 	# Create credential virtual server
@@ -502,7 +505,9 @@ when HTTP_REQUEST {
 	# TCP profile (short idle time-out to force the last event message out of the Format VS iRule buffer)
 	iapp::conf create ltm profile tcp ${app}_logging_tcp \{ defaults-from tcp idle-timeout 15 \}
 	# Create server SSL profile for Send VS
-	iapp::conf create ltm profile server-ssl ${app}_send_sssl \{ cert ${app}_send_vs_cert.crt defaults-from serverssl-insecure-compatible key ${app}_send_vs_cert.key \}
+	set cert_to_use [expr { $is_v14_0 ? "$crypto_key_name" : "${crypto_key_name}.crt" }]
+	set key_to_use [expr { $is_v14_0 ? "$crypto_key_name" : "${crypto_key_name}.key" }]
+	iapp::conf create ltm profile server-ssl ${app}_send_sssl \{ cert $cert_to_use defaults-from serverssl-insecure-compatible key $key_to_use \}
 
 	# Point to Send VS via this pool
 	iapp::conf create ltm pool ${app}_send_vs_pool \{ members replace-all-with \{ 255.255.255.254:${send_vs_port} \{ address 255.255.255.254 \} \} monitor tcp \}
@@ -911,5 +916,5 @@ text {
     requires-modules none
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature Grq3/+NC+Que+Ix+CdD2pUTcMoguBQhepKzABpsZEh3/5jsf2ZVlk1i3GevBJwov2EHimbpdzj9DEh8s07CvAj0pujhq4A35yuOMDarvLwrmbYSQ9MA/3VIFiwWQQkDLnE3qDDusAy5NrSi14nznG+i0gzZleyCfwGMLbAA8NMwVJPVTSbG7Y43z8z4FGcK4Q5bg2F7zPXWmroSMzhTTJpIBj6B0pbBC2Rd5bVGrIPsPttEZumSvRcCBwBTGiH8HGP5xduFt+CbE6fkKCn45m7Vgm+CvxYSWwaiOlPbBUzT+wmCNEiehh9MfMZqgRGl40ptqrBPPG1PvBLJjmE71Xg==
+    tmpl-signature FITSLVvZU20ULdGG58SkM5RkcmYPgPKLs1YrDp3Um8xqIr34M6k1o9nDwzaG+BLKxUei2E7FC3pcCAQvfjWJ9QGLI2yLZ7v37zGYgcb4jYc9mMP2D7EtrFc9e+SmUvIOsW47aIm4kyyA8dPfSMDgW+wQPRdjOHuP+1TBb+u4DFavZReobssqyQGuY5dZYVlVSl6rYck5JiDV/pnJ7PEsaSD5M7ytk886vixka3KQRGtW9gbY3IBMJHHz+VOz0sbCREx6Lhf2ov9PPLaHAy4/1DKZ6KPs4GlJN9JB4c7zv52MYsS+A+mS7T6my2XWqKFk5SHo4MWxzg+2OB62kBPR+w==
 }

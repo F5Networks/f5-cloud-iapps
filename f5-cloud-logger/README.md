@@ -7,9 +7,9 @@ This iApp is designed to provide logging into specific cloud analytics solutions
 
 ## Help
 
-While this template has been created by F5 Networks, it currently is an **experimental** solution and therefore has not completed full testing and is subject to change.  F5 Networks does not offer technical support for solutions that have been deemed **experimental**.
+Because this template has been created and fully tested by F5 Networks, it is fully supported by F5. This means you can get assistance if necessary from [F5 Technical Support](https://support.f5.com/csp/article/K40701984).
 
-We encourage you to use our [Slack channel](https://f5cloudsolutions.herokuapp.com) for discussion and assistance on cloud related solutions.
+We also encourage you to use our [Slack channel](https://f5cloudsolutions.herokuapp.com) for discussion and assistance on cloud related solutions.
 
 ## Example Azure OMS (Log Analytics) Queries
 
