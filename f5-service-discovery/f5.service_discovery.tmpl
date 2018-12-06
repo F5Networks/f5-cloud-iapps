@@ -13,18 +13,18 @@ sys application template /Common/f5.service_discovery {
             implementation {
                 package require iapp 1.3.0
 
-                set cloud_libs_min_version 4.5.0
-                set aws_provider_min_version 2.3.0
-                set azure_provider_min_version 2.5.0
-                set gce_provider_min_version 2.3.0
+                set cloud_libs_min_version 4.6.0
+                set aws_provider_min_version 2.4.0
+                set azure_provider_min_version 2.6.0
+                set gce_provider_min_version 2.3.2
 
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) 2481d285c33b97ed083f6e48edcfbd1d5f8fb1dea0578f429017706a1829d3625fab6aff8f55fe71b2b5929410110043a17d57179d833f0f51c90fb0f6ff292d
-                        set hashes(f5-cloud-libs-aws.tar.gz) 35361a507a4ef0c8f5205c05d913dbea024f287777e86dccd0c345560a637c106aeab4150af9eafd828929eb7798184e076ea5359e16b4c2d5544cc380800711
-                        set hashes(f5-cloud-libs-azure.tar.gz) def8780b308a7cfea52d524e5ad07121e7091ecb826e01c87bc758c90fee5c25d12a2a4a06dc78ff64cb478a471f8514bde2cd5da19fb427de28598272a978bb
-                        set hashes(f5-cloud-libs-gce.tar.gz) 9d0d8c32909a272cc9a56dad60121916830462ba26c9bb1d731c10f4e33ba7a856520db55016097db2043e27d048027924470a8e68f366de0339a43b7b68b0d6
+                        set hashes(f5-cloud-libs.tar.gz) 535059811324dbda9783df2c4f7ac8405acf6f198efd5696bc0d90f4f8f645b77c04efd42c3dc94261f0b92d76cbae87613412531968a5e646baf4177807b953
+                        set hashes(f5-cloud-libs-aws.tar.gz) 076c969cbfff12efacce0879820262b7787c98645f1105667cc4927d4acfe2466ed64c777b6d35957f6df7ae266937dde42fef4c8b1f870020a366f7f910ffb5
+                        set hashes(f5-cloud-libs-azure.tar.gz) eea34eb9bf1fc86702cc8d3adcd0cd4cd3e8ede0bad5d85ce55b7248aeb5726583b0314bd1ac9383dbfbf97c79d08d27a473539844de6972c9f6f5fea1a7b9aa
+                        set hashes(f5-cloud-libs-gce.tar.gz) 605c13c0725dcf6ee96d24349aee68be59640c58fef16d42d69fe1b01fb2e59df14f2cd41f0718d21061b8fb52cdce57fcf6541ebc8610e54e0f7fe8e46d94cb
 
                         set file_name [file tail $file_path]
 
@@ -790,5 +790,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature Q1u4Ts/aGZ8XygzD5diC7h/qxrmOs65ZpSxiW1OmjnL76yMGsNY0cvFCtB9qwlvw7DbXJ3xmAZ6CIl9TxFkUDIkV4SSIFR8snrg7ghJlvlGAEWgjHm6wjxb391mJNLbkuudQoyogQm3aGznH0ZMGmTWBsq2t3/81Vf+lfLueT6dEMjAJ2zFTrd06dLYDoXwt4JPs4fCU57qp3pmdQ3BGO4zo/SnjbJcs7T8qgo1ZAK+AJ6tQFnV7JG2oBK08LeDPfmoOFeRNFG6Z/3yZVh+S5izcDoEJfFZ0vqzpRss4HmkRBLPdKMu4XmrnJqVdzlSBzY2+VbnmPPvqKK86tMFpEw==
+    tmpl-signature Yof1kpPk+mLpdQAGkA9H3977e6zxmRZDefFoQwNkjNvORGexS16iKRp1Rx+8c/PnKcz2QQ2muWDTh1FVjJvhp1vclAvguVDcTyWI2mLVu9CwjGxUhXimeirAiA5bmEqJcPbGyEE5PXU6RB81KVwOSTzlh8l4xcgEAvpHqI8ZUGzlCQSAVztxlXdif8uZUEj0atVFnEWkVLocGSBsXRcwAFyrvLe6CY3bqVfIdgd0RWKqr/MSXvRCoxDbdywPhuCwTce+NI0efRFKHHrYPG5f6t3V1lFb4/3JMC31gLVtV2TX9fBNcoJw4DaZiQFkKU3X0pNQNWiwhWFWpDmcdoUVFg==
 }
