@@ -328,10 +328,6 @@ sys application template /Common/f5.service_discovery {
                     set ::cloud__aws_secret_access_key $DEFAULT_ANSWER
                 }
 
-                if { [iapp::is ::cloud__azure_bigip_defined_env $YES_ANSWER] } {
-                    set ::cloud__azure_environment $DEFAULT_ANSWER
-                }
-
                 if { [iapp::is ::cloud__gce_bigip_in_gc $YES_ANSWER] } {
                     set ::cloud__gce_credentials_json_base64 $DEFAULT_ANSWER
                 }
@@ -359,7 +355,7 @@ sys application template /Common/f5.service_discovery {
                     }
                     azure {
                         set encrypted [encrypt $::cloud__azure_sp_secret $cloud_libs_base_dir]
-                        if { [iapp::is ::cloud__azure_bigip_defined_env $NO_ANSWER] } {
+                        if { [iapp::is ::cloud__azure_bigip_in_environment $NO_ANSWER] } {
                             append provider_options environment:$::cloud__azure_environment,
                         }
                         append provider_options resourceGroup:$::cloud__azure_resource_group,
@@ -502,11 +498,11 @@ sys application template /Common/f5.service_discovery {
                     }
 
                     optional ( cloud_provider == "azure" ) {
-                        choice azure_bigip_defined_env default "yes" display "xxlarge"
+                        choice azure_bigip_in_environment default "yes" display "xxlarge"
                             optional ( basic.display_help == "max" ) {
-                                message azure_bigip_defined_env_help
+                                message azure_bigip_in_environment_help
                             }
-                        optional ( azure_bigip_defined_env == "no" ) {
+                        optional ( azure_bigip_in_environment == "no" ) {
                             choice azure_environment display "xxlarge"
                         }
                          string azure_resource_group required display "xxlarge"
@@ -713,11 +709,11 @@ sys application template /Common/f5.service_discovery {
                     cloud.aws_role_arn "What is the role Amazon Resource Name (ARN)?"
                     cloud.aws_external_id "What is the External ID?"
 
-                    cloud.azure_bigip_defined_env "Are your BIG-IP and pool members in the same Azure Environment?" {
+                    cloud.azure_bigip_in_environment "Are your BIG-IP and pool members in the same Azure Environment?" {
                         "Yes" => "yes",
                         "No" => "no"
                     }
-                    cloud.azure_bigip_defined_env_help "" "If your BIG-IP and pool members are in different Azure environments, we need the Azure Environment of the pool members"
+                    cloud.azure_bigip_in_environment_help "" "If your BIG-IP and pool members are in different Azure environments, we need the Azure Environment of the pool members"
                     cloud.azure_subscription_id "What is the subscription ID?"
                     cloud.azure_tenant_id "What is the tenant ID?"
                     cloud.azure_client_id "What is the client ID?"
