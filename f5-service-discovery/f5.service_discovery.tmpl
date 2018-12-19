@@ -355,7 +355,9 @@ sys application template /Common/f5.service_discovery {
                     }
                     azure {
                         set encrypted [encrypt $::cloud__azure_sp_secret $cloud_libs_base_dir]
-
+                        if { [iapp::is ::cloud__azure_bigip_in_environment $NO_ANSWER] } {
+                            append provider_options environment:$::cloud__azure_environment,
+                        }
                         append provider_options resourceGroup:$::cloud__azure_resource_group,
                         append provider_options subscriptionId:$::cloud__azure_subscription_id,
                         append provider_options clientId:$::cloud__azure_client_id,
@@ -496,6 +498,13 @@ sys application template /Common/f5.service_discovery {
                     }
 
                     optional ( cloud_provider == "azure" ) {
+                        choice azure_bigip_in_environment default "yes" display "xxlarge"
+                            optional ( basic.display_help == "max" ) {
+                                message azure_bigip_in_environment_help
+                            }
+                        optional ( azure_bigip_in_environment == "no" ) {
+                            choice azure_environment display "xxlarge"
+                        }
                          string azure_resource_group required display "xxlarge"
                          optional ( basic.display_help == "max" ) {
                             message azure_resource_group_help
@@ -700,6 +709,11 @@ sys application template /Common/f5.service_discovery {
                     cloud.aws_role_arn "What is the role Amazon Resource Name (ARN)?"
                     cloud.aws_external_id "What is the External ID?"
 
+                    cloud.azure_bigip_in_environment "Are your BIG-IP and pool members in the same Azure Environment?" {
+                        "Yes" => "yes",
+                        "No" => "no"
+                    }
+                    cloud.azure_bigip_in_environment_help "" "If your BIG-IP and pool members are in different Azure environments, we need the Azure Environment of the pool members"
                     cloud.azure_subscription_id "What is the subscription ID?"
                     cloud.azure_tenant_id "What is the tenant ID?"
                     cloud.azure_client_id "What is the client ID?"
@@ -707,6 +721,13 @@ sys application template /Common/f5.service_discovery {
                     cloud.azure_auth_help "" "Enter the service principal information used to search the Azure subscription for pool members. See https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-create-service-principal-portal for more information."
                     cloud.azure_resource_group "What is the Azure resource group?"
                     cloud.azure_resource_group_help "" "Type the name of the Azure resource group containing the tagged resources."
+
+                    cloud.azure_environment "Which Azure Environment do you want to search for pool members?" {
+                        "Azure" => "Azure",
+                        "Azure China" => "AzureChina",
+                        "Azure US Government" => "AzureUSGovernment",
+                        "Azure German Cloud" => "AzureGermanCloud"
+                    }
 
                     cloud.gce_bigip_in_gc "Is your BIG-IP running in Google Cloud?" {
                         "Yes" => "yes",
@@ -784,7 +805,7 @@ sys application template /Common/f5.service_discovery {
         }
     }
     description none
-    ignore-verification false
+    ignore-verification true
     requires-bigip-version-max none
     requires-bigip-version-min 12.1.0
     requires-modules { ltm }
