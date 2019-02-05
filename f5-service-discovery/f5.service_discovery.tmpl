@@ -13,18 +13,18 @@ sys application template /Common/f5.service_discovery {
             implementation {
                 package require iapp 1.3.0
 
-                set cloud_libs_min_version 4.6.1
+                set cloud_libs_min_version 4.7.0
                 set aws_provider_min_version 2.4.0
-                set azure_provider_min_version 2.7.0
-                set gce_provider_min_version 2.3.2
+                set azure_provider_min_version 2.7.1
+                set gce_provider_min_version 2.3.3
 
                 proc verify_hash { file_path } {
                     if {[catch {
 
-                        set hashes(f5-cloud-libs.tar.gz) 9f0d44f88a43f1effb52f95df1def607982c938fd260aa73fac1755025a47a0955cc8a3cac74e4a7def6f4eff3e1ec9b882549dd9fded09addcb7a122868508e
+                        set hashes(f5-cloud-libs.tar.gz) 38dd6c47a3156f408aa4697564d7886d21d491c49937b31cca1aca3c84f4bdc0815bb355302c4f584b954d4bf376b18ac54b09db5e534d17a9c785a6089122ff
                         set hashes(f5-cloud-libs-aws.tar.gz) 076c969cbfff12efacce0879820262b7787c98645f1105667cc4927d4acfe2466ed64c777b6d35957f6df7ae266937dde42fef4c8b1f870020a366f7f910ffb5
-                        set hashes(f5-cloud-libs-azure.tar.gz) 1903a02ec58b4e0251d8200426097cb136a209da2106a092e39bc0b67870cfb3f41be3c5e15668ab43ba3ef047994d7b562e329e9f73075e39eabdd6702932f1
-                        set hashes(f5-cloud-libs-gce.tar.gz) 605c13c0725dcf6ee96d24349aee68be59640c58fef16d42d69fe1b01fb2e59df14f2cd41f0718d21061b8fb52cdce57fcf6541ebc8610e54e0f7fe8e46d94cb
+                        set hashes(f5-cloud-libs-azure.tar.gz) 889605c4944e88b1a4c686517afb20a82ca9485357b97f701f1e34eb092d9ca1f5861e4f696267ede8335e08e5b513cde84ba8dfce6ec57bd714a9837134d83f
+                        set hashes(f5-cloud-libs-gce.tar.gz) 5cd829ee1cbeb713a6edba82de03b327ef73520c8141df164ff827e52b73a812ef2dd7fe38d5f17271d613717a4d19c0ed91d757fa7e575dad1f1e510b20d221
 
                         set file_name [file tail $file_path]
 
@@ -811,5 +811,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature eoXRmay5EKsAtz5oM0cnbeipIf0He2IDxZlc+7Fdd2SYTY0eleJej5WvNBLRy5bbnoS2OtCRNxwV5wbR0bEvWsWGmvjnexoAGk5jQdM9uNrq9PE2pias85KgnuJnFTQeVjirpdfP/4ISfL5uHsLZLaa4OFSH4bhn185pTnEnxBrRyvQRR2qlMbA4OsJkTRcQPd88XqJC5W/tBuOg3COXucTvi+Et5pzMJOjCJi36WwBrZVqq7n5Q7/fTvgNGHGCQp0XXKUc38CcGLfhPJ/+tpHk1LePC6O4v11fAGHBXYmLSlTyefprKBCmQbyb3A6WsNBwnKGrovt8BSS3P+rmDjA==
+    tmpl-signature OqRw49sGRpXyKjCGExz4dVb8szmaqRjBsTCVWq+T7wjs7B1xR6sQrrbgpuf0fU+yytAtg0DcWcu7LJQkUaRxgQaY7scyeWz8Ws67wUgZe44vapELsnVXoG81qEP9mi1qY3eIkGCv4FBLobDPMXt46yNAsrcKu9J/lxtF+5146gwdQkISQSVUXNFQrbdLvHEdbpBP2aheMS2B0HggmtgQO2oV9HjciTBkNOFxy1TDssS0+k1HQ6FdVdVuKHTqnrwMMOlrRRa2vR5yJRA6lkp5GjL0/wDX6yB/jEOB7/zwNq/5ILmWu8WEcz4Y2SyyW7TmLqOg0V3R9qqoq4QFxnVEhA==
 }
