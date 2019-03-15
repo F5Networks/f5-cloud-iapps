@@ -13,18 +13,12 @@ sys application template /Common/f5.service_discovery {
             implementation {
                 package require iapp 1.3.0
 
-                set cloud_libs_min_version 4.6.0
-                set aws_provider_min_version 2.4.0
-                set azure_provider_min_version 2.6.0
-                set gce_provider_min_version 2.3.2
+                set service_discovery_rpm_min_version 1.0.0-1
+                set service_discovery_tag v$service_discovery_rpm_min_version
 
                 proc verify_hash { file_path } {
                     if {[catch {
-
-                        set hashes(f5-cloud-libs.tar.gz) 535059811324dbda9783df2c4f7ac8405acf6f198efd5696bc0d90f4f8f645b77c04efd42c3dc94261f0b92d76cbae87613412531968a5e646baf4177807b953
-                        set hashes(f5-cloud-libs-aws.tar.gz) 076c969cbfff12efacce0879820262b7787c98645f1105667cc4927d4acfe2466ed64c777b6d35957f6df7ae266937dde42fef4c8b1f870020a366f7f910ffb5
-                        set hashes(f5-cloud-libs-azure.tar.gz) eea34eb9bf1fc86702cc8d3adcd0cd4cd3e8ede0bad5d85ce55b7248aeb5726583b0314bd1ac9383dbfbf97c79d08d27a473539844de6972c9f6f5fea1a7b9aa
-                        set hashes(f5-cloud-libs-gce.tar.gz) 605c13c0725dcf6ee96d24349aee68be59640c58fef16d42d69fe1b01fb2e59df14f2cd41f0718d21061b8fb52cdce57fcf6541ebc8610e54e0f7fe8e46d94cb
+                        set hashes(f5-service-discovery-1.0.0-1.noarch.rpm) 0da952dfd7ee1caca1d09729ccefc4e076a5dba736172cc293c05e967500dd8e77e09ef3f2c44fb452f182d93e332a7ad124414bb3d045ad157fa37e1a65a1ea
 
                         set file_name [file tail $file_path]
 
@@ -79,13 +73,14 @@ sys application template /Common/f5.service_discovery {
                     return -1
                 }
 
-                proc get_installed_version { path file_name } {
+                proc get_installed_version { path } {
                     set version {}
-                    if { [string match */node_modules/* $path] } {
-                        # if it's a node module...
+                    if { [string match */node_modules/* $path]
+                         || [string match /var/config/rest/iapps/* $path] } {
+                        # if it's a node package...
                         set version [exec /bin/cat $path/package.json | /usr/bin/jq -r .version]
                     } else {
-                        puts "Unknown file type $path $file_name"
+                        puts "Unknown file type $path"
                     }
                     return $version
                 }
@@ -105,23 +100,62 @@ sys application template /Common/f5.service_discovery {
 
                         puts "Verifying $download_path"
                         verify_hash $download_path
+                    } err ]} {
+                        tmsh::log err "Error downloading $url: $err"
+                        error "Error downloading $url: $err"
+                        exit 1
+                    }
+                }
 
-                        puts "Installing $download_path"
-                        if { [string match *.tar.gz $file_name] } {
-                            exec /bin/tar xzf $download_path --directory $dest_path --warning=no-timestamp
+                proc install { full_path availability_check } {
+                    if { [catch {
+                        puts "Installing $full_path"
+                        if { [string match *.rpm $full_path] } {
+                            set body_map "
+                                <FULL_PATH> $full_path
+                            "
+                            set body {{"operation": "INSTALL", "packageFilePath": "<FULL_PATH>"}}
+                            set body [string map $body_map $body]
+
+                            set task_id [exec /usr/bin/curl -sku admin: -X POST -d $body https://localhost/mgmt/shared/iapp/package-management-tasks | jq -r .id]
+
+                            # wait till it is done installing
+                            set status ''
+                            set num_tries 50
+                            while { $status != "FINISHED" && $num_tries != 0 } {
+                                set status [exec /usr/bin/curl -sku admin: https://localhost/mgmt/shared/iapp/package-management-tasks/$task_id | jq -r .status]
+                                incr num_tries -1
+                            }
+
+                            # wait till it is available
+                            set status [exec /usr/bin/curl -sku admin: $availability_check]
+                            set num_tries 50
+                            while { $status != "{}" && $num_tries != 0 } {
+                                set status [exec /usr/bin/curl -sku admin: $availability_check]
+                                incr num_tries -1
+                            }
+
+                            if { $status == "{}" } {
+                                puts "Installed $full_path"
+                            } else {
+                                tmsh::log err "$full_path never became available"
+                                error "$full_path never became available"
+                                exit 1
+                            }
+
                         } else {
                             tmsh::log err "Unknown file type $full_path"
                             error "Unknown file type $full_path"
                             exit 1
                         }
                     } err ]} {
-                        tmsh::log err "Error installing $url: $err"
-                        error "Error installing $url: $err"
+                        tmsh::log err "Error installing $full_path: $err"
+                        error "Error installing $full_path: $err"
                         exit 1
                     }
                 }
 
-                proc is_install_required { dependencies template_install_prefix sd_install_prefix } {
+                proc is_install_required { dependencies } {
                     set needs_install 0
 
                     # figure out if we need to install anything
@@ -130,24 +164,17 @@ sys application template /Common/f5.service_discovery {
                         set min_version [lindex $dependency 1]
                         set download_url [lindex $dependency 2]
 
-                        set sd_path [string map "$template_install_prefix $sd_install_prefix" $path]
                         set file_name [file tail $download_url]
 
-                        puts "checking $path and $sd_path"
-                        if { ![file exists $path] && ![file exists $sd_path] } {
+                        puts "checking $path"
+                        if { ![file exists $path] } {
                             # if the file doesn't exist at all, download it
                             puts "$path does not exist. Will install."
                             set needs_install 1
                         } else {
                             # check to see if a recent enough version is installed
 
-                            if { [file exists $sd_path] } {
-                                set path_to_check $sd_path
-                            } else {
-                                set path_to_check $path
-                            }
-
-                            set installed_version [get_installed_version $path_to_check $file_name]
+                            set installed_version [get_installed_version $path]
 
                             if { [string length $installed_version] == 0 } {
                                 puts "Could not get version of $path_to_check $file_name"
@@ -167,91 +194,77 @@ sys application template /Common/f5.service_discovery {
                 proc install_dependencies { cloud_provider } {
                     puts "Checking dependencies"
 
-                    upvar 1 cloud_libs_min_version cloud_libs_min_version
-                    upvar 1 aws_provider_min_version aws_provider_min_version
-                    upvar 1 azure_provider_min_version azure_provider_min_version
-                    upvar 1 gce_provider_min_version gce_provider_min_version
+                    upvar 1 service_discovery_rpm_min_version service_discovery_rpm_min_version
+                    upvar 1 service_discovery_tag service_discovery_tag
 
-                    set common_install_prefix /config/cloud
-                    set template_install_prefix $common_install_prefix/$cloud_provider
-                    set sd_install_prefix $common_install_prefix/iapps/service_discovery
+                    set common_install_prefix /var/config/rest/iapps
+                    set sd_install_dir $common_install_prefix/f5-service-discovery
 
-                    set template_install_dir $template_install_prefix/node_modules/@f5devcentral
-
-                    switch $cloud_provider {
-                        aws {
-                            set provider_min_version $aws_provider_min_version
-                        }
-                        azure {
-                            set provider_min_version $azure_provider_min_version
-                        }
-                        gce {
-                            set provider_min_version $gce_provider_min_version
-                        }
-                    }
-
-                    set cloud_libs_tag v$cloud_libs_min_version
-                    set provider_tag v$provider_min_version
-
-                    # each element in list is a list of 'location_to_search min_acceptable_version download_url'
+                    # each element in list is a list of 'location_to_search min_acceptable_version download_url availability_check_url'
                     set dependencies [list \
-                        [list $template_install_dir/f5-cloud-libs                  $cloud_libs_min_version   https://cdn.f5.com/product/cloudsolutions/f5-cloud-libs/$cloud_libs_tag/f5-cloud-libs.tar.gz 0] \
-                        [list $template_install_dir/f5-cloud-libs-$cloud_provider  $provider_min_version     https://cdn.f5.com/product/cloudsolutions/f5-cloud-libs-$cloud_provider/$provider_tag/f5-cloud-libs-$cloud_provider.tar.gz 0] \
+                        [list $sd_install_dir $service_discovery_rpm_min_version https://cdn.f5.com/product/cloudsolutions/f5-service-discovery/$service_discovery_tag/f5-service-discovery-$service_discovery_rpm_min_version.noarch.rpm https://localhost/mgmt/shared/service-discovery/task/available] \
                     ]
 
-                    set install_prefix {}
-
-                    if { [is_install_required $dependencies $template_install_prefix $sd_install_prefix] == 1 } {
+                    if { [is_install_required $dependencies] == 1 } {
                         puts "Installing dependencies"
-                        set install_prefix $sd_install_prefix
                         foreach dependency $dependencies {
                             set path [lindex $dependency 0]
                             set download_url [lindex $dependency 2]
+                            set availability_check [lindex $dependency 3]
 
-                            set sd_path [string map "$template_install_prefix $sd_install_prefix" $path]
                             set file_name [file tail $download_url]
+                            set dest_path /var/config/rest/downloads
 
-                            set dest_path [file dirname $sd_path]
                             download $download_url $file_name $dest_path
-                        }
-                    } else {
-                        # if a good version is installed, we need to know if we are using the
-                        # version installed by the template or the one installed by this iapp
-                        if { [file exists $sd_install_prefix] } {
-                            set install_prefix $sd_install_prefix
-                        } else {
-                            set install_prefix $template_install_prefix
+                            install $dest_path/$file_name $availability_check
                         }
                     }
-
-                    return $install_prefix
                 }
 
-                proc encrypt { data cloud_libs_base_dir } {
-                    append out_file /tmp/sd_creds_ [expr { int(rand() * 1000) }]
-                    exec /usr/bin/f5-rest-node $cloud_libs_base_dir/node_modules/@f5devcentral/f5-cloud-libs/scripts/encryptDataToFile --data $data --private-key-name serviceDiscoveryKey --out-file $out_file --symmetric
+                # splits a string into a list of chunks of a specified length
+                proc chunk { data chunk_length } {
+                    set start 0
+                    set length [string length $data]
+                    lappend chunks
+                    while { $start + $chunk_length <= $length } {
+                        set end [expr $start + $chunk_length - 1]
+                        lappend chunks [string range $data $start $end]
+                        incr start $chunk_length
+                    }
 
-                    set fp [open $out_file r]
-                    set encrypted [read $fp]
-                    close $fp
-                    exec rm $out_file
+                    if { $start < $length } {
+                        lappend chunks [string range $data $start [expr $length - 1]]
+                    }
+
+                    return $chunks
+                }
+
+                # The service discovery worker expects encrypted data to be encrypted MCP configuration
+                # values. For large data, this must be broken up into comma separated chunks.
+                proc encrypt { data app_name } {
+                    set encrypted {}
+                    set chunks [chunk $data 500]
+                    foreach chunk $chunks {
+                        exec /usr/bin/tmsh create auth radius-server $app_name secret $chunk server foo
+                        set radius_info [exec /usr/bin/tmsh list auth radius-server $app_name]
+                        regexp {secret\s+([^\s]+)} $radius_info -> encrypted_chunk
+                        if { $encrypted ne "" } {
+                            append encrypted ,
+                        }
+                        append encrypted $encrypted_chunk
+                        exec /usr/bin/tmsh delete auth radius-server $app_name
+                    }
 
                     return $encrypted
                 }
 
-                proc get_encrypt_provider_options { encrypted } {
-                    append options secretData:[exec echo $encrypted | jq -r .encryptedData],
-                    append options secretIv:[exec echo $encrypted | jq -r .iv],
-                    append options secretKey:[exec echo $encrypted | jq -r .encryptedKey],
-                    append options secretPrivateKeyName:[exec echo $encrypted | jq -r .privateKey.name],
-                    append options secretPrivateKeyFolder:[exec echo $encrypted | jq -r .privateKey.folder]
-                }
+                # These functions are not used, but must be here for people upgrading from older versions
+                proc url_encode {} {}
+                proc url_init {} {}
 
                 iapp::template start
 
-                set cloud_libs_base_dir [install_dependencies $::cloud__cloud_provider]
-
-                exec /bin/mkdir -p /var/log/cloud/service_discovery
+                install_dependencies $::cloud__cloud_provider
 
                 # constants
                 set YES_ANSWER "yes"
@@ -328,104 +341,185 @@ sys application template /Common/f5.service_discovery {
                     set ::cloud__aws_secret_access_key $DEFAULT_ANSWER
                 }
 
-                if { [iapp::is ::cloud__gce_bigip_in_gc $YES_ANSWER] } {
-                    set ::cloud__gce_credentials_json_base64 $DEFAULT_ANSWER
-                }
-
                 if { [iapp::is ::cloud__aws_use_role $NO_ANSWER] } {
                     set ::cloud__aws_role_arn $DEFAULT_ANSWER
                     set ::cloud__aws_external_id $DEFAULT_ANSWER
                 }
 
+                if { [iapp::is ::cloud__gce_bigip_in_gc $YES_ANSWER] } {
+                    set ::cloud__gce_credentials_json_base64 $DEFAULT_ANSWER
+                }
+
                 switch $::cloud__cloud_provider {
                     aws {
-                        append provider_options roleArn=$::cloud__aws_role_arn,
-                        append provider_options externalId=$::cloud__aws_external_id,
+                        append provider_options "{"
+                        append provider_options {"tagKey": "<MEMBER_TAG_KEY>",}
+                        append provider_options {"tagValue": "<MEMBER_TAG_VALUE>",}
+                        append provider_options {"addressRealm": "<ADDRESS_TYPE>",}
+                        append provider_options {"region": "<REGION>"}
+
+                        if { ![iapp::is ::cloud__aws_role_arn $DEFAULT_ANSWER] } {
+                            append provider_options {,}
+                            append provider_options {"roleARN": "<ROLE_ARN>"}
+                        }
+
+                        if { ![iapp::is ::cloud__aws_external_id $DEFAULT_ANSWER] } {
+                            append provider_options {,}
+                            append provider_options {"externalId": "<EXTERNAL_ID>"}
+                        }
 
                         if { [iapp::is ::cloud__aws_bigip_in_ec2 $NO_ANSWER] } {
-                            set encrypted [encrypt $::cloud__aws_secret_access_key $cloud_libs_base_dir]
-
-                            append provider_options region:$::cloud__aws_region_req,
-                            append provider_options accessKeyId:$::cloud__aws_access_key_id,
-                            append provider_options [get_encrypt_provider_options $encrypted]
-
-                        } else {
-                            append provider_options region:$::cloud__aws_region
+                            append provider_options {,}
+                            append provider_options {"accessKeyId": "<ACCESS_KEY_ID>",}
+                            append provider_options {"secretAccessKey": "<SECRET_ACCESS_KEY>"}
                         }
+
+                        append provider_options "}"
+
+                        set provider_options_map "
+                            <MEMBER_TAG_KEY>      $::pool__tag_key
+                            <MEMBER_TAG_VALUE>    $::pool__tag_value
+                            <ADDRESS_TYPE>        $::pool__public_private
+                            <ROLE_ARN>            $::cloud__aws_role_arn
+                            <EXTERNAL_ID>         $::cloud__aws_external_id
+                        "
+
+                        if { [iapp::is ::cloud__aws_bigip_in_ec2 $NO_ANSWER] } {
+                            set encrypted [encrypt $::cloud__aws_secret_access_key $tmsh::app_name]
+                            append provider_options_map "
+                                <REGION>              $::cloud__aws_region_req
+                                <ACCESS_KEY_ID>       $::cloud__aws_access_key_id
+                                <SECRET_ACCESS_KEY>   $encrypted
+                            "
+                        } else {
+                            append provider_options_map "
+                                <REGION>              $::cloud__aws_region
+                            "
+                        }
+
+                        set provider_options [string map $provider_options_map $provider_options]
                     }
                     azure {
-                        set encrypted [encrypt $::cloud__azure_sp_secret $cloud_libs_base_dir]
+                        append provider_options "{"
+                        append provider_options {"tagKey": "<MEMBER_TAG_KEY>",}
+                        append provider_options {"tagValue": "<MEMBER_TAG_VALUE>",}
+                        append provider_options {"addressRealm": "<ADDRESS_TYPE>",}
+                        append provider_options {"resourceGroup": "<RESOURCE_GROUP>",}
+                        append provider_options {"subscriptionId": "<SUBSCRIPTION_ID>",}
+                        append provider_options {"tenantId": "<TENANT_ID>",}
+                        append provider_options {"clientId": "<CLIENT_ID>",}
+                        append provider_options {"apiAccessKey": "<SP_SECRET>"}
+
                         if { [iapp::is ::cloud__azure_bigip_in_environment $NO_ANSWER] } {
-                            append provider_options environment:$::cloud__azure_environment,
+                            append provider_options {,}
+                            append provider_options {"environment": "<ENVIRONMENT>"}
                         }
-                        append provider_options resourceGroup:$::cloud__azure_resource_group,
-                        append provider_options subscriptionId:$::cloud__azure_subscription_id,
-                        append provider_options clientId:$::cloud__azure_client_id,
-                        append provider_options tenantId:$::cloud__azure_tenant_id,
-                        append provider_options [get_encrypt_provider_options $encrypted]
+
+                        append provider_options "}"
+
+                        set encrypted [encrypt $::cloud__azure_sp_secret $tmsh::app_name]
+
+                        set provider_options_map "
+                            <MEMBER_TAG_KEY>      $::pool__tag_key
+                            <MEMBER_TAG_VALUE>    $::pool__tag_value
+                            <ADDRESS_TYPE>        $::pool__public_private
+                            <RESOURCE_GROUP>      $::cloud__azure_resource_group
+                            <SUBSCRIPTION_ID>     $::cloud__azure_subscription_id
+                            <TENANT_ID>           $::cloud__azure_tenant_id
+                            <CLIENT_ID>           $::cloud__azure_client_id
+                            <SP_SECRET>           $encrypted
+                        "
+
+                        if { [iapp::is ::cloud__azure_bigip_in_environment $NO_ANSWER] } {
+                            append provider_options_map "
+                                <ENVIRONMENT>     $::cloud__azure_environment
+                            "
+                        }
+
+                        set provider_options [string map $provider_options_map $provider_options]
                     }
                     gce {
+                        append provider_options "{"
+                        append provider_options {"tagKey": "<MEMBER_TAG_KEY>",}
+                        append provider_options {"tagValue": "<MEMBER_TAG_VALUE>",}
+                        append provider_options {"addressRealm": "<ADDRESS_TYPE>",}
+                        append provider_options {"region": "<REGION>"}
+
                         if { [iapp::is ::cloud__gce_bigip_in_gc $NO_ANSWER] } {
-                            set encrypted [encrypt $::cloud__gce_credentials_json_base64 $cloud_libs_base_dir]
-
-                            append provider_options region:$::cloud__gce_region_req,
-                            append provider_options [get_encrypt_provider_options $encrypted]
-                        } else {
-                            append provider_options region:$::cloud__gce_region
+                            append provider_options {,}
+                            append provider_options {"encodedCredentials": "<GC_CREDENTIALS>"}
                         }
+
+                        append provider_options "}"
+
+                        set provider_options_map "
+                            <MEMBER_TAG_KEY>      $::pool__tag_key
+                            <MEMBER_TAG_VALUE>    $::pool__tag_value
+                            <ADDRESS_TYPE>        $::pool__public_private
+                        "
+
+                        if { [iapp::is ::cloud__gce_bigip_in_gc $NO_ANSWER] } {
+                            set encrypted [encrypt $::cloud__gce_credentials_json_base64 $tmsh::app_name]
+                            append provider_options_map "
+                                <REGION>         $::cloud__gce_region_req
+                                <GC_CREDENTIALS>  $encrypted
+                            "
+                        } else {
+                            append provider_options_map "
+                                <REGION>         $::cloud__gce_region
+                            "
+                        }
+
+                        set provider_options [string map $provider_options_map $provider_options]
                     }
                 }
 
-                set icall_script {
-                    if { [catch {
-                        # We might be in a cluster and on a BIG-IP that doesn't yet have the code,
-                        # so if we don't have it, re-deploy so that the code will be installed
+                append post_body "{"
+                append post_body     {"schemaVersion": "1.0.0",}
+                append post_body     {"class": "ServiceDiscovery",}
+                append post_body     {"id": "<TASK_ID>",}
+                append post_body     {"updateInterval": <UPDATE_INTERVAL>,}
+                append post_body     {"resources": [}
+                append post_body         "{"
+                append post_body             {"type": "pool",}
+                append post_body             {"path": "<POOL_TO_USE>",}
+                append post_body             {"options":}
+                append post_body             "{"
+                append post_body                 {"servicePort": <MEMBER_PORT>,}
+                append post_body                 {"connectionLimit": <CONNECTION_LIMIT>}
+                append post_body             "}"
+                append post_body         "}"
+                append post_body     {],}
+                append post_body     {"provider": "<CLOUD>",}
+                append post_body     {"providerOptions": {<PROVIDER_OPTIONS>},}
+                append post_body     {"dependsOn": "sys application service <APP_NAME>"}
+                append post_body "}"
 
-                        if { ![file isdirectory <CLOUD_LIBS_BASE_DIR>] } {
-                            exec /usr/bin/tmsh -c "modify sys application service <APP_NAME> \{ execute-action definition \}"
-                        }
-
-                        tmsh::modify sys application service <APP_NAME> strict-updates disabled
-                        set mgmt_port [tmsh::get_config sys httpd ssl-port]
-                        set mgmt_port [regexp -all -inline {\d+} $mgmt_port]
-
-                        set members [exec /bin/bash -c "NODE_JSON=\$(/usr/bin/f5-rest-node <CLOUD_LIBS_BASE_DIR>/node_modules/@f5devcentral/f5-cloud-libs/scripts/getNodes.js --cloud <CLOUD> --provider-options '<PROVIDER_OPTIONS>' --member-tag <MEMBER_TAG_KEY>=<MEMBER_TAG_VALUE> --member-address-type <ADDRESS_TYPE> --output /var/log/cloud/service_discovery/get_nodes.log);
-                            echo \$NODE_JSON | /usr/bin/jq -r 'if type == \"array\" then \[.\[\] | \"\\(.ip):<MEMBER_PORT> { address \\(.ip) description \\(.id) connection-limit <CONNECTION_LIMIT> }\"\]  | join (\" \") elif has(\"code\") then error(\"error from getNodes: \" + .message) else error(\"unxpected response from getNodes\") end'"]
-
-                        if { $members eq "" } {
-                            puts "Service Discovery: No matching members found"
-                        } elseif { [string first "jq: error:" $members] == 0 } {
-                            puts "Service Discovery: Error parsing nodes: $members"
-                        } else {
-                            tmsh::modify ltm pool <POOL_TO_USE> members replace-all-with \{ $members \}
-                        }
-                    } err ]} {
-                        tmsh::log err "Error querying for nodes: $err"
-                        exit
-                    }
-                }
-
-                set common_script_map "
+                set post_body_map "
                     <CLOUD>               $::cloud__cloud_provider
-                    <CLOUD_LIBS_BASE_DIR> $cloud_libs_base_dir
+                    <TASK_ID>             ${partition}_${app}.app_${app}
                     <APP_NAME>            /${partition}/${app}.app/${app}
                     <POOL_TO_USE>         $pool_name
+                    <UPDATE_INTERVAL>     $::pool__interval
                     <MEMBER_PORT>         $::pool__member_port
                     <CONNECTION_LIMIT>    $::pool__member_conn_limit
-                    <MEMBER_TAG_KEY>      $::pool__tag_key
-                    <MEMBER_TAG_VALUE>    $::pool__tag_value
-                    <ADDRESS_TYPE>        $::pool__public_private
+                    <PROVIDER_OPTIONS>    $provider_options
                 "
 
-                set provider_script_map "
-                    <PROVIDER_OPTIONS>  $provider_options
-                "
+                # Delete any existing tasks for this iapp. The rest worker does not let us POST to an
+                # existing task.
+                puts "DELETE"
+                set result [exec /usr/bin/curl -sku admin: -X DELETE https://localhost/mgmt/shared/service-discovery/task/${partition}_${app}.app_${app}?ignoreMissing=true]
+                puts "RESPONSE $result"
 
-                set mapped_script [string map $common_script_map $icall_script]
-                set mapped_script [string map $provider_script_map $mapped_script]
-                set mapped_script [regsub -all $DEFAULT_ANSWER $mapped_script '']
-                iapp::conf create sys icall script ${app}_service_discovery_icall_script \{ definition \{ $mapped_script \} description none events none \}
-                iapp::conf create sys icall handler periodic ${app}_service_discover_icall_handler \{ first-occurrence now interval $::pool__interval script ${app}_service_discovery_icall_script \}
+                set post_body [string map $post_body_map $post_body]
+                set post_body [regsub -all $DEFAULT_ANSWER $post_body {}]
+                puts "POST $post_body"
+                set result [exec /usr/bin/curl -sku admin: -X POST  -H "Content-Type: application/json" -H "Expect:" -d $post_body https://localhost/mgmt/shared/service-discovery/task?skipFirstRun=true]
+                puts "RESPONSE $result"
+
+                # we need strict updates off so that the rest worker can update the pool
+                tmsh::modify sys application service /${partition}/${app}.app/${app} strict-updates disabled
 
                 iapp::template stop
             }
@@ -449,7 +543,6 @@ sys application template /Common/f5.service_discovery {
                     message tag2
                     message tag3
                     message tag4
-
 
                     optional ( intro == "NEVER_SHOW_THIS" ) {
                         choice isa_dmin tcl {
@@ -805,11 +898,11 @@ sys application template /Common/f5.service_discovery {
         }
     }
     description none
-    ignore-verification true
+    ignore-verification false
     requires-bigip-version-max none
     requires-bigip-version-min 12.1.0
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature Yof1kpPk+mLpdQAGkA9H3977e6zxmRZDefFoQwNkjNvORGexS16iKRp1Rx+8c/PnKcz2QQ2muWDTh1FVjJvhp1vclAvguVDcTyWI2mLVu9CwjGxUhXimeirAiA5bmEqJcPbGyEE5PXU6RB81KVwOSTzlh8l4xcgEAvpHqI8ZUGzlCQSAVztxlXdif8uZUEj0atVFnEWkVLocGSBsXRcwAFyrvLe6CY3bqVfIdgd0RWKqr/MSXvRCoxDbdywPhuCwTce+NI0efRFKHHrYPG5f6t3V1lFb4/3JMC31gLVtV2TX9fBNcoJw4DaZiQFkKU3X0pNQNWiwhWFWpDmcdoUVFg==
+    tmpl-signature dzTif/UqJFfqFWLikwW48u9Z8eCaOyjmuqx0OA/sbsBUpUmsZohpNSGwzYI2BlC5Lk0awgdnT+Fav90LuZuOJmA01n6iG627s3kbJZeF86OJmy0L09JW4+5ta4c/QEH5u43TqM0Yb2YJisMD4YDt6JZyyW3Z4548N+3o/HR3cv85AB/CEGYBbBCUfIkj3ra1L/6IsRFW3Cv0/occz0By1I3BRXxAtvbVxc5iGvp1PgJmflspEXi+jK0A1SwLBTB+MbHp52P3a3c9yeyQj8mjCTKKvCKyUx+0WfuWJyMyvxauvgV69lHi5RcHwevrxABJuBdmziyXqgYFh1xmx0Wuqw==
 }
