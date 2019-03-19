@@ -261,6 +261,7 @@ sys application template /Common/f5.service_discovery {
                 # These functions are not used, but must be here for people upgrading from older versions
                 proc url_encode {} {}
                 proc url_init {} {}
+                proc get_encrypt_provider_options {} {}
 
                 iapp::template start
 
@@ -904,5 +905,5 @@ sys application template /Common/f5.service_discovery {
     requires-modules { ltm }
     signing-key /Common/f5-irule
     tmpl-checksum none
-    tmpl-signature dzTif/UqJFfqFWLikwW48u9Z8eCaOyjmuqx0OA/sbsBUpUmsZohpNSGwzYI2BlC5Lk0awgdnT+Fav90LuZuOJmA01n6iG627s3kbJZeF86OJmy0L09JW4+5ta4c/QEH5u43TqM0Yb2YJisMD4YDt6JZyyW3Z4548N+3o/HR3cv85AB/CEGYBbBCUfIkj3ra1L/6IsRFW3Cv0/occz0By1I3BRXxAtvbVxc5iGvp1PgJmflspEXi+jK0A1SwLBTB+MbHp52P3a3c9yeyQj8mjCTKKvCKyUx+0WfuWJyMyvxauvgV69lHi5RcHwevrxABJuBdmziyXqgYFh1xmx0Wuqw==
+    tmpl-signature NKCtWWLvQDk9yC8gzEGjzdQufMXqHcgK+0WU6Rx8G2CDWWeKAaRfvos7GDO7fLEMBjCc5S+B5KaOiF6QtiCjNxiOXi6wuLHzs4DvGdAwepeDELe55a4Ds+RQcrWqNlD6bP8OXz6hHga6aVCofSY46s6FfaYPsoyYt0hK5Cl0+3M4+YPPHQrQtcGW7maAxH3n33XQvhUeHBJ9YiqJkjuGYYDHo269+tAEGN5ojIrOrXih8ml3yoTptYPu/On6ig3Hbph6Xu48RxHmUHv0kwzhghlo0ll4qYZPMD9Ozi1A+UMSCHZJ8B2bGZXXPxu00F73Jo6CdEI17DW/9lFwIfChjw==
 }
