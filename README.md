@@ -1,6 +1,9 @@
 [![Slack Status](https://f5cloudsolutions.herokuapp.com/badge.svg)](https://f5cloudsolutions.herokuapp.com)
 [![Issues](https://img.shields.io/github/issues/f5networks/f5-cloud-iapps.svg)](https://github.com/f5networks/f5-cloud-iapps/issues)
 
+| :eyes:    | ***Notice***: These legacy templates have been deprecated and are being replaced by F5 Application Services Templates available in the [F5 Application Services Templates repo](https://github.com/F5Networks/f5-appsvcs-templates). We recommend you adopt the next-generation templates as soon as is feasible. See [Ask F5 article](https://support.f5.com/csp/article/K13422) for additional information.|
+|---------------|:------------------------| 
+
 # Introduction
 
 Welcome to the GitHub repository for F5's iApps specific to cloud environments.  All of the iApp templates in this repository have been developed by F5 Networks engineers. Across all branches in this repository, there is a directory for each published iApp.  For each iApp there is a README that gives some more details on what each solution does.
